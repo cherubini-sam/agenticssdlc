@@ -1,0 +1,89 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: platform/docker/Dockerfile.api
+      target: runtime
+    image: agentics-sdlc-api:local
+    container_name: agentics-sdlc-api
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=postgresql://agentics_sdlc:agentics_sdlc@db:5432/agentics_sdlc
+      - AGENTICS_SDLC_API_KEY=${AGENTICS_SDLC_API_KEY:-}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agentics-sdlc}
+      - GCS_BUCKET=${GCS_BUCKET:-}
+      - BIGQUERY_DATASET=${BIGQUERY_DATASET:-agentics_sdlc_analytics}
+      - QDRANT_URL=${QDRANT_URL:-}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:///tmp/mlruns}
+      - ENVIRONMENT=local
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:16-alpine
+    container_name: agentics-sdlc-db
+    environment:
+      POSTGRES_DB: agentics_sdlc
+      POSTGRES_USER: agentics_sdlc
+      POSTGRES_PASSWORD: agentics_sdlc
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./platform/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentics_sdlc -d agentics_sdlc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ui:
+    build:
+      context: .
+      dockerfile: platform/docker/Dockerfile.ui
+      target: runtime
+    image: agentics-sdlc-ui:local
+    container_name: agentics-sdlc-ui
+    command: ["chainlit", "run", "src/ui/ui_chainlit_app.py", "--port", "8001", "--host", "0.0.0.0"]
+    ports:
+      - "8001:8001"
+    environment:
+      - AGENTICS_SDLC_API_KEY=${AGENTICS_SDLC_API_KEY:-}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-agentics-sdlc}
+      - QDRANT_URL=${QDRANT_URL:-}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+      - CHAINLIT_AUTH_SECRET=${CHAINLIT_AUTH_SECRET:-dev-secret-change-in-prod}
+      - ENVIRONMENT=local
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  postgres_data:
+    driver: local

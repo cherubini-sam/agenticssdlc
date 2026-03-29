@@ -1,0 +1,23 @@
+.agent/
+.env
+# data/ — intentionally NOT excluded so ChromaDB is bundled into the image
+mlruns/
+__pycache__/
+.pytest_cache/
+tests/
+docs/
+.git/
+.github/
+notebooks/
+scripts/
+platform/terraform/
+platform/sql/
+*.md
+!README.md
+!chainlit.md
+.mypy_cache/
+.venv/
+venv/
+*.pyc
+.coverage
+htmlcov/

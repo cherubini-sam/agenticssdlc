@@ -1,0 +1,71 @@
+{
+  "agent.mode": "orchestrator",
+  "agent.policies": {
+    "artifact_review": "request_review",
+    "terminal.auto_execution": "auto"
+  },
+  "agent.proxy": "${AGENT_PROXY_URL}",
+  "agent.cache_control": {
+    "strategy": "priority_tiered",
+    "priority_tiers": {
+      "tier_1_constitution_runtime": [
+        ".agent/protocols/",
+        ".agent/rules/"
+      ],
+      "tier_2_capabilities": [
+        ".agent/resources/",
+        ".agent/shards/",
+        ".agent/skills/"
+      ],
+      "tier_3_identity": [".agent/roles/"]
+    }
+  },
+  "bootloader": {
+    "detection": {
+      "enabled": true,
+      "fallback_behavior": "halt_and_ask",
+      "model_patterns": {
+        "claude": ["claude-sonnet", "claude-opus", "claude-haiku"],
+        "gemini": ["gemini-flash", "gemini-pro", "gemini-ultra"],
+        "generic": ["*"]
+      },
+      "model_shards": {
+        "claude-sonnet-4": "shards_claude_sonnet_4",
+        "claude-opus-4": "shards_claude_opus_4",
+        "claude-haiku-4": "shards_claude_haiku_4",
+        "gemini-3-flash": "shards_gemini_3_flash",
+        "gemini-3-pro": "shards_gemini_3_pro",
+        "gemini-ultra": "shards_gemini_ultra",
+        "gemini-deep-think": "shards_gemini_ultra",
+        "generic": "shards_generic_llm"
+      }
+    }
+  },
+  "bootloader_validation": {
+    "auto_correct": false,
+    "enforce_model_match": true,
+    "violation_behavior": "SESSION_TERMINATION"
+  },
+  "shared": {
+    "artifacts_dir": ".agent/artifacts",
+    "protocols_dir": ".agent/protocols",
+    "resources_dir": ".agent/resources",
+    "roles_dir": ".agent/roles",
+    "rules_dir": ".agent/rules",
+    "shards_dir": ".agent/shards",
+    "skills_dir": ".agent/skills"
+  },
+  "violation_reporting": {
+    "log_on_violation_attempt": true,
+    "enabled": true,
+    "format": "TIMESTAMP | LAW_ID | VIOLATION_TYPE | RECOVERY_ACTION",
+    "mode": "strict",
+    "tracked_laws": [
+      { "id": "LAW_1", "name": "Transparency Lock", "severity": "CRITICAL" },
+      { "id": "LAW_30", "name": "Phase 1 Gate", "severity": "CRITICAL" },
+      { "id": "LAW_33", "name": "Phase Boundary", "severity": "HIGH" },
+      { "id": "LAW_31", "name": "Tool Invocation Gate", "severity": "CRITICAL" },
+      { "id": "LAW_32", "name": "Serial Execution", "severity": "MEDIUM" }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "versions": [
+    {
+      "version": "1.0.0",
+      "name": "Initial Release",
+      "date": "2024-01-01",
+      "prompt": "Review this code and suggest improvements:\n\n{code}",
+      "metrics": {
+        "accuracy": 0.75,
+        "avg_tokens": 150,
+        "avg_latency": 2.3
+      },
+      "notes": "Baseline version, too generic"
+    },
+    {
+      "version": "1.0.0",
+      "name": "Added Structure",
+      "date": "2024-01-15",
+      "prompt": "Review this code for:\n- Readability\n- Performance\n- Security\n\n<code>\n{code}\n</code>\n\nProvide specific, actionable feedback.",
+      "metrics": {
+        "accuracy": 0.82,
+        "avg_tokens": 145,
+        "avg_latency": 2.1
+      },
+      "notes": "Improved specificity, reduced tokens"
+    },
+    {
+      "version": "1.0.0",
+      "name": "Optimized",
+      "date": "2024-02-01",
+      "prompt": "Code review:\n\n<code>\n{code}\n</code>\n\nCheck:\n- Readability\n- Performance\n- Security\n\nProvide actionable feedback.",
+      "metrics": {
+        "accuracy": 0.85,
+        "avg_tokens": 120,
+        "avg_latency": 1.9
+      },
+      "notes": "Removed verbose phrases, 17% token reduction",
+      "active": true
+    }
+  ],
+  "a_b_tests": [
+    {
+      "test_id": "test_001",
+      "date": "2024-01-20",
+      "variants": {
+        "A": "Please review this code and provide your thoughts on improvements",
+        "B": "Review this code and suggest improvements"
+      },
+      "results": {
+        "A": {
+          "accuracy": 0.78,
+          "tokens": 165
+        },
+        "B": {
+          "accuracy": 0.79,
+          "tokens": 142
+        }
+      },
+      "winner": "B",
+      "notes": "Variant B: 14% fewer tokens, slightly better accuracy"
+    }
+  ],
+  "best_practices": {
+    "token_optimization": [
+      "Remove politeness phrases (please, kindly, etc.)",
+      "Use XML tags for structure",
+      "Avoid redundant instructions",
+      "Use bullet points over prose"
+    ],
+    "accuracy_improvements": [
+      "Provide specific examples",
+      "Define expected output format",
+      "List explicit constraints",
+      "Use few-shot learning"
+    ],
+    "caching_strategy": [
+      "Put static content first",
+      "Keep system prompts >1024 tokens",
+      "Separate dynamic variables",
+      "Use consistent structure"
+    ]
+  }
+}

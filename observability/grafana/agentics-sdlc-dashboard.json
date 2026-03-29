@@ -1,0 +1,1012 @@
+{
+  "id": null,
+  "uid": "agentics-sdlc",
+  "title": "Agentics SDLC \u2014 Agent Operations",
+  "description": "Historical KPIs from BigQuery (primary) + live Prometheus metrics (secondary)",
+  "tags": [
+    "agenticssdlc",
+    "agents",
+    "production",
+    "bigquery"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 4,
+  "refresh": "30s",
+  "graphTooltip": 1,
+  "style": "dark",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "__inputs": [
+    {
+      "name": "bq_datasource",
+      "label": "BigQuery",
+      "description": "BigQuery datasource for historical KPIs",
+      "type": "datasource",
+      "pluginId": "grafana-bigquery-datasource",
+      "pluginName": "BigQuery"
+    },
+    {
+      "name": "prom_datasource",
+      "label": "Prometheus",
+      "description": "Prometheus datasource for live metrics",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "grafana-bigquery-datasource",
+      "name": "BigQuery",
+      "version": "1.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "bq_datasource",
+        "type": "datasource",
+        "pluginId": "grafana-bigquery-datasource",
+        "label": "BigQuery",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "query": "grafana-bigquery-datasource",
+        "refresh": 1
+      },
+      {
+        "name": "prom_datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "label": "Prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "#7fbdf0",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Sessions (30d)",
+      "description": "Distinct workflow sessions started in the last 30 days",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(DISTINCT session_id) AS value FROM `agentics-sdlc.agentics_sdlc_analytics.agent_audit_log` WHERE timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#4588d3",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "text": {
+          "valueSize": 40
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Success Rate (30d)",
+      "description": "Percentage of successful calls over the last 30 days",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(SAFE_DIVIDE(SUM(successful_calls), SUM(total_calls)), 4) AS value FROM `agentics-sdlc.agentics_sdlc_analytics.daily_agent_metrics` WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND agent_name = 'MANAGER'",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0c2067",
+                "value": null
+              },
+              {
+                "color": "#4588d3",
+                "value": 0.7
+              },
+              {
+                "color": "#7fbdf0",
+                "value": 0.9
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "text": {
+          "valueSize": 40
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Avg Confidence (7d)",
+      "description": "Average REFLECTOR confidence score \u2014 threshold 0.85",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT avg_confidence AS value FROM `agentics-sdlc.agentics_sdlc_analytics.agent_performance_7d` WHERE agent_name = 'MANAGER' LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0c2067",
+                "value": null
+              },
+              {
+                "color": "#4588d3",
+                "value": 0.75
+              },
+              {
+                "color": "#7fbdf0",
+                "value": 0.85
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "text": {
+          "valueSize": 40
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "P95 Latency (7d)",
+      "description": "95th percentile end-to-end latency across successful calls",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT p95_latency_ms / 1000.0 AS value FROM `agentics-sdlc.agentics_sdlc_analytics.agent_performance_7d` WHERE agent_name = 'MANAGER' LIMIT 1",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#7fbdf0",
+                "value": null
+              },
+              {
+                "color": "#4588d3",
+                "value": 120
+              },
+              {
+                "color": "#0c2067",
+                "value": 250
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "text": {
+          "valueSize": 40
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Daily Call Volume (30d)",
+      "description": "Total vs successful vs failed calls per day",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT day, SUM(total_calls) AS total_calls, SUM(successful_calls) AS successful_calls, SUM(failed_calls) AS failed_calls FROM `agentics-sdlc.agentics_sdlc_analytics.daily_agent_metrics` WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND agent_name = 'MANAGER' GROUP BY day ORDER BY day ASC",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_calls"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Total"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#4588d3"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "successful_calls"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Success"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#7fbdf0"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed_calls"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failed"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#0c2067"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "xField": "day",
+        "barWidth": 0.7,
+        "groupWidth": 0.75,
+        "stacking": "none",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Daily Success Rate (30d)",
+      "description": "Percentage of successful calls per day",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT TIMESTAMP(day) AS time, ROUND(SAFE_DIVIDE(SUM(successful_calls), SUM(total_calls)), 4) AS success_rate FROM `agentics-sdlc.agentics_sdlc_analytics.daily_agent_metrics` WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND agent_name = 'MANAGER' GROUP BY day ORDER BY day ASC",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "showPoints": "always",
+            "pointSize": 6,
+            "axisBorderShow": false
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#7fbdf0"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0c2067",
+                "value": null
+              },
+              {
+                "color": "#4588d3",
+                "value": 0.7
+              },
+              {
+                "color": "#7fbdf0",
+                "value": 0.9
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "min",
+            "max"
+          ]
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Agent Performance Summary (7d)",
+      "description": "Confidence, latency, and call volume per agent \u2014 last 7 days",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT agent_name AS Agent, sample_size AS Successful_Calls, ROUND(avg_confidence * 100, 1) AS Avg_Confidence_Pct, ROUND(stddev_confidence * 100, 1) AS Confidence_StdDev_Pct, ROUND(avg_latency_ms / 1000.0, 1) AS Avg_Latency_s, ROUND(p95_latency_ms / 1000.0, 1) AS P95_Latency_s FROM `agentics-sdlc.agentics_sdlc_analytics.agent_performance_7d` ORDER BY avg_confidence DESC",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg_Confidence_Pct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Avg Confidence (%)"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0c2067",
+                      "value": null
+                    },
+                    {
+                      "color": "#4588d3",
+                      "value": 75
+                    },
+                    {
+                      "color": "#7fbdf0",
+                      "value": 85
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence_StdDev_Pct"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Confidence StdDev (%)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg_Latency_s"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Avg Latency (s)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Successful_Calls"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Successful Calls"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P95_Latency_s"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "P95 Latency (s)"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#7fbdf0",
+                      "value": null
+                    },
+                    {
+                      "color": "#4588d3",
+                      "value": 120
+                    },
+                    {
+                      "color": "#0c2067",
+                      "value": 250
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Low-Confidence Sessions",
+      "description": "Sessions where confidence < 0.85 \u2014 last 7 days",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${bq_datasource}"
+      },
+      "targets": [
+        {
+          "rawQuery": true,
+          "rawSql": "SELECT timestamp AS Time, session_id AS Session_ID, agent_name AS Agent, phase AS Phase, ROUND(confidence, 3) AS Confidence, ROUND(latency_ms / 1000.0, 1) AS Latency_s, SUBSTR(error, 1, 120) AS Error FROM `agentics-sdlc.agentics_sdlc_analytics.low_confidence_sessions` ORDER BY timestamp DESC LIMIT 50",
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#0c2067",
+                      "value": null
+                    },
+                    {
+                      "color": "#4588d3",
+                      "value": 0.5
+                    },
+                    {
+                      "color": "#7fbdf0",
+                      "value": 0.75
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Session_ID"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Session ID"
+              },
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency_s"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Latency (s)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Error"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 400
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "sortBy": [
+          {
+            "displayName": "Time",
+            "desc": true
+          }
+        ]
+      },
+      "timeFrom": "30d",
+      "timeShift": null
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Active Workflows",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom_datasource}"
+      },
+      "targets": [
+        {
+          "expr": "max(last_over_time(agentics_sdlc_active_workflows[$__rate_interval]))",
+          "legendFormat": "Active",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#4588d3",
+                "value": null
+              },
+              {
+                "color": "#7fbdf0",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Live Confidence",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom_datasource}"
+      },
+      "targets": [
+        {
+          "expr": "avg(agentics_sdlc_agent_confidence)",
+          "legendFormat": "Confidence",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#0c2067",
+                "value": null
+              },
+              {
+                "color": "#4588d3",
+                "value": 0.75
+              },
+              {
+                "color": "#7fbdf0",
+                "value": 0.85
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 32
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Call Rate & Error Rate (Live)",
+      "gridPos": {
+        "h": 4,
+        "w": 16,
+        "x": 8,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prom_datasource}"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (increase(agentics_sdlc_agent_calls_total[$__range]))",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "showPoints": "auto"
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "right",
+          "calcs": [
+            "last"
+          ]
+        }
+      }
+    }
+  ]
+}

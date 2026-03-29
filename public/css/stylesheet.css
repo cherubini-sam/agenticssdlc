@@ -1,0 +1,151 @@
+/* Agentics SDLC stylesheet */
+
+/* Password-only login: collapse the email/username field entirely */
+input[type="email"],
+input[name="username"],
+input[name="email"],
+input[id="username"],
+input[id="email"],
+input[autocomplete="username"],
+input[autocomplete="email"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+}
+
+div:has(> input[type="email"]),
+div:has(> input[name="username"]),
+div:has(> input[name="email"]),
+div:has(> input[id="username"]),
+div:has(> input[id="email"]) {
+  display: none !important;
+}
+
+/* Kill the chat-history sidebar but keep the element side panel */
+[class*="ThreadHistory"],
+[class*="threadHistory"],
+[data-testid="sidebar"] {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Sidebar toggle is a MuiBox div, not a button -- hide both states */
+#open-sidebar-button,
+#close-sidebar-button,
+div[id="open-sidebar-button"],
+div[id="close-sidebar-button"] {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  opacity: 0 !important;
+}
+
+/* Reclaim the space the sidebar would have taken */
+main {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+
+/*
+  Shadow policy -- only three things get shadows:
+    1. Header bar
+    2. Chat input box
+    3. Menus / logout popover
+  Everything else stays flat; the Gruvbox surfaces carry enough contrast.
+*/
+
+/* 1. Header */
+#header {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.40) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+/* 2. Chat input */
+.MuiPaper-root:has(textarea),
+div:has(> textarea) {
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.35),
+    0 0   0 1px rgba(255,255,255,0.05) !important;
+  border-radius: 16px !important;
+}
+
+/* Starter prompt cards */
+button[id^="starter-"] {
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.28),
+    0 0   0 1px rgba(255,255,255,0.04) !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+button[id^="starter-"]:hover {
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.38),
+    0 0   0 1px rgba(255,255,255,0.07) !important;
+}
+
+/* Strip backgrounds from chatbox wrapper layers so they don't create a visible seam */
+div:has(> .MuiPaper-root:has(textarea)),
+div:has(> div:has(.MuiPaper-root:has(textarea))),
+div:has(> div:has(> div:has(.MuiPaper-root:has(textarea)))) {
+  background:       transparent !important;
+  background-color: transparent !important;
+}
+
+footer, [class*="footer"], div:has(> footer) {
+  background-color: transparent !important;
+}
+
+/* 3. Menus / popovers */
+.MuiDialog-paper,
+.MuiMenu-paper,
+.MuiPopover-paper {
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.50),
+    0 2px  8px rgba(0,0,0,0.28) !important;
+}
+
+/* Prevent popover clipping behind other layers */
+.MuiPopover-root,
+.MuiMenu-root,
+.MuiModal-root {
+  z-index: 100000 !important;
+}
+
+/* Tooltips need to float above the settings dialog (z-index 1300) */
+[class*="MuiTooltip-popper"] {
+  z-index: 200000 !important;
+}
+
+.MuiPopover-root .MuiPaper-root,
+.MuiMenu-root .MuiPaper-root {
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  transform: none !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+}
+
+/* Keep popovers within viewport bounds */
+.MuiPopover-paper,
+.MuiMenu-paper {
+  max-width: calc(100vw - 32px) !important;
+  overflow-x: hidden !important;
+}
+
+@media (max-width: 768px) {
+  .MuiPopover-paper {
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}

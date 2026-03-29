@@ -1,0 +1,72 @@
+# Stage 1: build dependencies
+
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir poetry poetry-plugin-export
+
+COPY pyproject.toml poetry.lock* ./
+
+RUN poetry export --without dev --without-hashes --format requirements.txt \
+    --output requirements.txt
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# CPU-only torch -- skip the massive CUDA wheels
+RUN TORCH_VER=$(grep -iE "^torch==" requirements.txt | head -1 | sed 's/torch==//;s/ .*//') && \
+    grep -viE "^(torch|nvidia[-_]|triton)" requirements.txt > requirements_notorch.txt && \
+    pip install --no-cache-dir "torch==${TORCH_VER}+cpu" --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements_notorch.txt
+
+
+# Stage 2: bake the embedding model into the image
+
+FROM python:3.11-slim AS embeddings
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN python -c "\
+from sentence_transformers import SentenceTransformer; \
+SentenceTransformer('BAAI/bge-large-en-v1.5', cache_folder='/hf_cache')"
+
+
+# Stage 3: Chainlit UI runtime
+
+FROM python:3.11-slim AS runtime
+
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --no-create-home appuser
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY --chown=1001:1001 --from=embeddings /hf_cache /hf_cache
+
+ENV HF_HOME=/hf_cache \
+    TRANSFORMERS_CACHE=/hf_cache \
+    SENTENCE_TRANSFORMERS_HOME=/hf_cache \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8080
+
+COPY src/ ./src/
+COPY public/ ./public/
+COPY chainlit.md ./chainlit.md
+COPY .chainlit/ ./.chainlit/
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port ${PORT:-8080}"]

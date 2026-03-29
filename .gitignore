@@ -1,0 +1,100 @@
+# Security & Secrets
+.env
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa
+id_rsa.pub
+secrets.yaml
+*-key.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env/
+.venv/
+ENV/
+build/
+dist/
+develop-eggs/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+dist/
+
+# Terraform
+.terraform/
+*.tfvars
+!*.tfvars.example
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Docker
+*.log
+logs/
+
+# IDE
+.idea/
+*.iws
+*.iml
+.history/
+*.code-workspace
+.vscode/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+*.swp
+*.swo
+.*.swp
+*~
+.#*
+
+# Node
+node_modules/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing & coverage
+.coverage.*
+.hypothesis/
+.tox/
+
+# Vector stores & local databases
+*.db
+*.sqlite
+*.sqlite3
+.qdrant_storage/
+chroma/
+
+# Distribution
+*.egg
+*.whl
+
+# Temp & backup
+*.tmp
+*.temp
+tmp/
+*.bak
+*.orig
+*.rej
+
+# Pip logs
+pip-log.txt
+pip-delete-this-directory.txt

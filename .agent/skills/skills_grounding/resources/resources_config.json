@@ -1,0 +1,6 @@
+{
+  "google_search_grounding": true,
+  "dynamic_retrieval_threshold": 0.5,
+  "include_citations": true,
+  "max_citations": 5
+}

@@ -1,0 +1,40 @@
+[project]
+enable_telemetry = false
+
+[features]
+unsafe_allow_html = false
+latex = false
+auto_tag_thread = true
+edit_message = true
+default_collapse_content = false
+
+[UI]
+name        = "Agentics SDLC"
+description = "Multi-Agent AI Platform — 7 agents, 6-phase industrial workflow"
+github      = "https://github.com/cherubini-sam/agenticssdlc"
+
+# Fills the hidden email field and handles other Chainlit DOM patches
+custom_js = "/public/js/init.js"
+
+# Password-only login, sidebar removal, shadow system
+custom_css = "/public/css/stylesheet.css"
+
+cot = "full"
+default_sidebar_state = "hidden"
+confirm_new_chat = true
+
+[UI.theme]
+default = "dark"
+
+# Gruvbox-inspired warm palette; complements the brand blue (#4588d3)
+
+[UI.theme.dark]
+background = "#2D353B"
+paper      = "#232A2E"
+
+[UI.theme.light]
+background = "#F3EAD3"
+paper      = "#EBE0C0"
+
+[meta]
+generated_by = "1.3.0"
