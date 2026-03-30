@@ -9,9 +9,7 @@ from src.agents.agents_utils import (
     AGENTS_ARCHITECT_AGENT_NAME,
     AGENTS_ARCHITECT_HUMAN_TEMPLATE,
     AGENTS_ARCHITECT_SYSTEM_PROMPT,
-    AGENTS_ARCHITECT_VERBOSITY_CONCISE,
-    AGENTS_ARCHITECT_VERBOSITY_DETAILED,
-    AGENTS_ARCHITECT_VERBOSITY_STANDARD,
+    AGENTS_ARCHITECT_VERBOSITY_SUFFIX,
     AGENTS_MANAGER_VERBOSITY_DEFAULT,
 )
 
@@ -28,12 +26,9 @@ class AgentsArchitect(AgentsBase):
         Verbosity tweaks the system prompt suffix.
         """
 
-        _VERBOSITY_SUFFIX = {
-            "concise": AGENTS_ARCHITECT_VERBOSITY_CONCISE,
-            "standard": AGENTS_ARCHITECT_VERBOSITY_STANDARD,
-            "detailed": AGENTS_ARCHITECT_VERBOSITY_DETAILED,
-        }
-        system = AGENTS_ARCHITECT_SYSTEM_PROMPT + _VERBOSITY_SUFFIX.get(verbosity, "")
+        system = AGENTS_ARCHITECT_SYSTEM_PROMPT + AGENTS_ARCHITECT_VERBOSITY_SUFFIX.get(
+            verbosity, ""
+        )
         human = AGENTS_ARCHITECT_HUMAN_TEMPLATE.format(task=task, context=context)
 
         return await self._agents_base_call_llm(

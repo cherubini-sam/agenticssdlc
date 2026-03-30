@@ -111,6 +111,15 @@ logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD: float = AGENTS_MANAGER_CONFIDENCE_THRESHOLD
 
 
+def _agents_manager_is_plan_approved(critique: dict | None, threshold: float) -> bool:
+    """Return True if the reflector approved the plan or confidence meets the threshold."""
+
+    if not critique:
+        return False
+    confidence: float = float(critique.get("confidence", 0.0))
+    return critique.get("approved") is True or confidence >= threshold
+
+
 class AgentsState(TypedDict):
     """Shared state dict passed through every LangGraph node."""
 
@@ -129,7 +138,7 @@ class AgentsState(TypedDict):
     error: str | None
     protocol_status: str | None
     protocol_violations: list | None
-    # User-configurable overrides from the UI session
+    task_preview: str | None
     confidence_threshold: float | None
     validator_confidence_threshold: float | None
     max_retries_override: int | None
@@ -186,9 +195,11 @@ async def _agents_manager_task_phase(state: AgentsState) -> dict:
             task_id=state["task_id"],
         )
     )
-    logger.info(AGENTS_MANAGER_LOG_TASK_CONTENT.format(content=state["content"][:120]))
+    task_preview = state["content"][:120]
+    logger.info(AGENTS_MANAGER_LOG_TASK_CONTENT.format(content=task_preview))
     return {
         "phase": AGENTS_MANAGER_PHASE_1,
+        "task_preview": task_preview,
         "active_agent": AGENTS_MANAGER_AGENT_NAME,
         "messages": [
             {
@@ -298,10 +309,9 @@ async def _agents_manager_critique_phase(state: AgentsState) -> dict:
     if critique.get("errors"):
         logger.info(AGENTS_MANAGER_LOG_CRITIQUE_ERRORS.format(errors=critique["errors"]))
 
-    confidence_val = float(critique.get("confidence", 0.0))
-    # Reflector doesn't always set "approved" explicitly, so we also gate on confidence
     threshold = state.get("confidence_threshold") or CONFIDENCE_THRESHOLD
-    approved_val = critique.get("approved") is True or confidence_val >= threshold
+    confidence_val = float(critique.get("confidence", 0.0))
+    approved_val = _agents_manager_is_plan_approved(critique, threshold)
 
     return {
         "phase": AGENTS_MANAGER_PHASE_4,
@@ -337,10 +347,11 @@ async def _agents_manager_execute_phase(state: AgentsState) -> dict:
         verbosity=state.get("verbosity") or AGENTS_MANAGER_VERBOSITY_DEFAULT,
     )
 
+    result_preview = result[:60].replace("\n", " ")
     logger.info(
         AGENTS_MANAGER_LOG_EXECUTE_DONE.format(
             count=len(result),
-            preview=result[:60].replace("\n", " "),
+            preview=result_preview,
         )
     )
 
@@ -429,10 +440,9 @@ def _agents_manager_route_after_critique(state: AgentsState) -> str:
     if not critique:
         return AGENTS_MANAGER_NODE_EXECUTE
 
-    confidence = float(critique.get("confidence", 0.0))
     threshold = state.get("confidence_threshold") or CONFIDENCE_THRESHOLD
-    approved = critique.get("approved") is True or confidence >= threshold
-    if approved:
+    confidence = float(critique.get("confidence", 0.0))
+    if _agents_manager_is_plan_approved(critique, threshold):
         return AGENTS_MANAGER_NODE_EXECUTE
 
     retries = state.get("retry_count", 0)
@@ -554,6 +564,7 @@ class AgentsManager:
             "error": None,
             "protocol_status": None,
             "protocol_violations": None,
+            "task_preview": None,
         }
 
         config = {
@@ -680,6 +691,7 @@ class AgentsManager:
             "error": None,
             "protocol_status": None,
             "protocol_violations": None,
+            "task_preview": None,
             "confidence_threshold": confidence_threshold,
             "validator_confidence_threshold": validator_confidence_threshold,
             "max_retries_override": max_retries,

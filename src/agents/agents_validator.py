@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -20,6 +18,7 @@ from src.agents.agents_utils import (
     AGENTS_VALIDATOR_RESULT_TRUNCATION,
     AGENTS_VALIDATOR_SYSTEM_PROMPT,
     AGENTS_VALIDATOR_VERDICT_PASSED,
+    agents_utils_extract_json,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,18 +45,17 @@ class AgentsValidator(AgentsBase):
             ]
         )
 
-        try:
-            m = re.search(AGENTS_VALIDATOR_JSON_PATTERN, raw, re.DOTALL)
-            if m:
-                verdict = json.loads(m.group())
+        verdict = agents_utils_extract_json(raw, AGENTS_VALIDATOR_JSON_PATTERN)
+        if verdict is not None:
+            try:
                 return {
                     "verdict": verdict.get("verdict", AGENTS_VALIDATOR_VERDICT_PASSED),
                     "score": float(verdict.get("score", AGENTS_VALIDATOR_FALLBACK_SCORE)),
                     "issues": verdict.get("issues", []),
                     "error": verdict.get("error"),
                 }
-        except (json.JSONDecodeError, AttributeError, ValueError) as e:
-            logger.warning(AGENTS_VALIDATOR_LOG_PARSE_FAILED.format(error=e))
+            except (ValueError, TypeError) as e:
+                logger.warning(AGENTS_VALIDATOR_LOG_PARSE_FAILED.format(error=e))
 
         # Safe default: if the LLM gives us garbage JSON, assume a reasonable pass
         return {

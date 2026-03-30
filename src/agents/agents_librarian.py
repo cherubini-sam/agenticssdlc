@@ -18,6 +18,16 @@ from src.rag.rag_vector_store import RagVectorStore
 
 logger = logging.getLogger(__name__)
 
+# Vector store is initialized once and reused across all instances
+_VECTOR_STORE: RagVectorStore | None = None
+
+
+async def _agents_librarian_get_vector_store() -> RagVectorStore:
+    global _VECTOR_STORE
+    if _VECTOR_STORE is None:
+        _VECTOR_STORE = await RagVectorStore.rag_vector_store_create()
+    return _VECTOR_STORE
+
 
 class AgentsLibrarian:
     """Top-k semantic retrieval from the vector store. No LLM calls."""
@@ -29,10 +39,10 @@ class AgentsLibrarian:
         self._retriever = None
 
     async def _agents_librarian_get_retriever(self) -> Any:
-        """Vector store connection is deferred until the first query to avoid startup overhead."""
+        """Retriever is built once per instance; vector store is shared across all instances."""
 
         if self._retriever is None:
-            vector_store = await RagVectorStore.rag_vector_store_create()
+            vector_store = await _agents_librarian_get_vector_store()
             self._retriever = RagRetriever(vector_store, k=self._k)
         return self._retriever
 

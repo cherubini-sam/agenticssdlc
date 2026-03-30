@@ -2,6 +2,22 @@
 
 from __future__ import annotations
 
+import json
+import re
+
+
+def agents_utils_extract_json(raw: str, pattern: str) -> dict | None:
+    """Extract the first JSON object matching pattern from raw LLM output."""
+
+    try:
+        match: re.Match[str] | None = re.search(pattern, raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return None
+
+
 # Agent Names
 
 AGENTS_ARCHITECT_AGENT_NAME: str = "ARCHITECT"
@@ -152,6 +168,11 @@ AGENTS_ARCHITECT_VERBOSITY_STANDARD: str = ""
 AGENTS_ARCHITECT_VERBOSITY_DETAILED: str = (
     " Be thorough: include comprehensive explanations, edge cases, rationale, " "and examples."
 )
+AGENTS_ARCHITECT_VERBOSITY_SUFFIX: dict[str, str] = {
+    "concise": AGENTS_ARCHITECT_VERBOSITY_CONCISE,
+    "standard": AGENTS_ARCHITECT_VERBOSITY_STANDARD,
+    "detailed": AGENTS_ARCHITECT_VERBOSITY_DETAILED,
+}
 AGENTS_ARCHITECT_HUMAN_TEMPLATE: str = "Task: {task}\n\nContext:\n{context}"
 AGENTS_ARCHITECT_SYSTEM_PROMPT: str = (
     "You are the ARCHITECT agent in the Agentics SDLC multi-agent system. "
