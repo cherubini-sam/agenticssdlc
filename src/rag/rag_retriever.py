@@ -9,6 +9,7 @@ from typing import Any
 from langchain_core.documents import Document
 
 from src.rag.rag_utils import (
+    RAG_LOG_RETRIEVER_EMPTY_QUERY,
     RAG_LOG_RETRIEVER_ERROR,
     RAG_LOG_RETRIEVER_SUCCESS,
     RAG_LOG_RETRIEVER_TIMEOUT,
@@ -21,16 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 class RagRetriever:
-    """
-    Top-k semantic retrieval backed by BGE-large embeddings.
-    No BM25 or cross-encoder reranking: overkill at our current doc scale (see ADR-003).
-    """
+    """Top-k semantic retrieval backed by BGE-large embeddings."""
 
     def __init__(self, vector_store: Any, k: int = RAG_RETRIEVER_DEFAULT_K) -> None:
         self.retriever = vector_store.rag_vector_store_get_retriever(k=k)
         self.logger = logging.getLogger("rag.rag_retriever")
 
     async def rag_retriever_retrieve(self, query: str) -> list[Document]:
+        if not query.strip():
+            self.logger.warning(RAG_LOG_RETRIEVER_EMPTY_QUERY)
+            return []
         # Wrapping in wait_for so a stuck vector DB call doesn't block the whole request
         try:
             docs = await asyncio.wait_for(

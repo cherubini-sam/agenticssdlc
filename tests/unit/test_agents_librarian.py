@@ -53,7 +53,7 @@ class TestLibrarianAgent:
 
         with (
             patch(
-                "agents.agents_librarian.RagVectorStore.rag_vector_store_create",
+                "agents.agents_librarian.rag_vector_store_get_instance",
                 new_callable=AsyncMock,
                 return_value=mock_vs,
             ),
