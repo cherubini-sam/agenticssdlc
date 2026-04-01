@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import json
+import re
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
+
+from src.api.api_utils import (
+    API_SCHEMAS_TASK_CONTENT_BLANK_ERROR,
+    API_SCHEMAS_TASK_CONTENT_CONTROL_CHAR_PATTERN,
+    API_SCHEMAS_TASK_CONTENT_MAX_LENGTH,
+    API_SCHEMAS_TASK_CONTEXT_MAX_BYTES,
+    API_SCHEMAS_TASK_CONTEXT_TOO_LARGE_ERROR,
+)
 
 
 class ApiSchemasAgentType(str, Enum):
@@ -48,20 +58,35 @@ class ApiSchemasErrorCode(str, Enum):
 class ApiSchemasTaskRequest(BaseModel):
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     content: str = Field(
-        ..., min_length=1, max_length=4096, description="Task description or query"
+        ...,
+        min_length=1,
+        max_length=API_SCHEMAS_TASK_CONTENT_MAX_LENGTH,
+        description="Task description or query",
     )
     context: dict = Field(default_factory=dict)
     priority: Literal["low", "normal", "high"] = "normal"
 
     @field_validator("content")
     @classmethod
-    def not_blank(cls, v: str) -> str:
-        """Catch whitespace-only strings that pass the min_length check."""
+    def not_blank(cls, content: str) -> str:
+        """Catch whitespace-only strings and strip prompt-injection-prone control characters."""
 
-        stripped = v.strip()
+        stripped = content.strip()
         if not stripped:
-            raise ValueError("content cannot be blank")
-        return stripped
+            raise ValueError(API_SCHEMAS_TASK_CONTENT_BLANK_ERROR)
+        # Remove ASCII control characters (except newline/tab which are valid in task content)
+        sanitized = re.sub(API_SCHEMAS_TASK_CONTENT_CONTROL_CHAR_PATTERN, "", stripped)
+        return sanitized
+
+    @field_validator("context")
+    @classmethod
+    def context_size_limit(cls, context: dict) -> dict:
+        """Reject oversized context objects that could cause DoS or log bloat."""
+
+        serialized = json.dumps(context)
+        if len(serialized) > API_SCHEMAS_TASK_CONTEXT_MAX_BYTES:
+            raise ValueError(API_SCHEMAS_TASK_CONTEXT_TOO_LARGE_ERROR)
+        return context
 
 
 class ApiSchemasTaskResponse(BaseModel):

@@ -19,6 +19,8 @@ from src.api.api_utils import (
     API_HEALTH_STATUS_READY,
     API_HEALTH_VAL_NOT_INIT,
     API_HEALTH_VAL_OK,
+    API_HTTP_200_OK,
+    API_HTTP_503_SERVICE_UNAVAILABLE,
     API_SERVICE_NAME,
     API_SERVICE_VERSION,
 )
@@ -56,7 +58,7 @@ async def api_routers_readiness(request: Request) -> JSONResponse:
     if vector_store is None:
         all_ready = False
 
-    status_code = 200 if all_ready else 503
+    status_code = API_HTTP_200_OK if all_ready else API_HTTP_503_SERVICE_UNAVAILABLE
     return JSONResponse(
         status_code=status_code,
         content={
