@@ -11,6 +11,9 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from src.agents.agents_manager import AgentsManager
 from src.analytics.analytics_bigquery_ingest import AnalyticsBigqueryIngest
@@ -22,12 +25,16 @@ from src.api.api_utils import (
     API_CORS_ALLOW_HEADERS,
     API_CORS_ALLOW_METHODS,
     API_GCP_PROJECT_DEV_SENTINEL,
+    API_HTTP_413_REQUEST_TOO_LARGE,
     API_MAIN_LOG_BQ_ERROR,
     API_MAIN_LOG_BQ_START,
+    API_MAIN_LOG_CORS_WILDCARD,
     API_MAIN_LOG_READY,
     API_MAIN_LOG_SHUTDOWN,
     API_MAIN_LOG_SUPABASE_ERROR,
     API_MAIN_LOG_SUPABASE_START,
+    API_MAIN_MAX_REQUEST_BODY_BYTES,
+    API_MAIN_REQUEST_BODY_TOO_LARGE,
     API_MAIN_STATUS_DISABLED,
     API_MAIN_STATUS_ENABLED,
     API_METRICS_MOUNT_PATH,
@@ -47,6 +54,19 @@ from src.rag.rag_vector_store import RagVectorStore
 warnings.filterwarnings("ignore", message=API_WARNINGS_LANGCHAIN_IGNORE)
 
 logger = logging.getLogger(__name__)
+
+
+class _RequestBodySizeLimit(BaseHTTPMiddleware):
+    """Reject requests whose Content-Length exceeds the allowed maximum."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        content_length = request.headers.get("content-length")
+        if content_length is not None and int(content_length) > API_MAIN_MAX_REQUEST_BODY_BYTES:
+            return JSONResponse(
+                status_code=API_HTTP_413_REQUEST_TOO_LARGE,
+                content={"detail": API_MAIN_REQUEST_BODY_TOO_LARGE},
+            )
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -109,10 +129,14 @@ def create_app() -> FastAPI:
     )
 
     _origins = [o.strip() for o in get_settings().allowed_origins.split(",") if o.strip()]
+    _allow_credentials = "*" not in _origins and bool(_origins)
+    if "*" in _origins:
+        logger.warning(API_MAIN_LOG_CORS_WILDCARD)
 
     # Middleware order matters: outermost runs first on the request path.
     # Observability wraps everything so we get timing even for auth rejections.
     app.add_middleware(ApiMiddlewareObservability)
+    app.add_middleware(_RequestBodySizeLimit)
     app.add_middleware(ApiMiddlewareApiKey)
     app.add_middleware(ApiMiddlewareRateLimit, rpm=get_settings().rate_limit_rpm)
     app.add_middleware(
@@ -121,8 +145,7 @@ def create_app() -> FastAPI:
         allow_methods=API_CORS_ALLOW_METHODS,
         allow_headers=API_CORS_ALLOW_HEADERS,
         expose_headers=API_RATELIMIT_EXPOSE_HEADERS,
-        # Only send cookies when origins are explicitly listed
-        allow_credentials=_origins != ["*"],
+        allow_credentials=_allow_credentials,
     )
 
     metrics_app = make_asgi_app()

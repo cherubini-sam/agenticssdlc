@@ -9,7 +9,23 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from src.api.api_utils import API_MIDDLEWARE_AUTH_METRICS_PATHS, API_MIDDLEWARE_AUTH_OPEN_PATHS
+from src.api.api_utils import (
+    API_HEADER_API_KEY,
+    API_HTTP_401_UNAUTHORIZED,
+    API_HTTP_403_FORBIDDEN,
+    API_MIDDLEWARE_AUTH_BASIC_REALM,
+    API_MIDDLEWARE_AUTH_FORBIDDEN,
+    API_MIDDLEWARE_AUTH_INVALID_KEY_DETAIL,
+    API_MIDDLEWARE_AUTH_LOG_DISABLED,
+    API_MIDDLEWARE_AUTH_LOG_INVALID_BASIC,
+    API_MIDDLEWARE_AUTH_LOG_INVALID_KEY,
+    API_MIDDLEWARE_AUTH_LOG_UNAUTHENTICATED,
+    API_MIDDLEWARE_AUTH_METRICS_PATHS,
+    API_MIDDLEWARE_AUTH_MISSING_KEY_DETAIL,
+    API_MIDDLEWARE_AUTH_MISSING_KEY_HINT,
+    API_MIDDLEWARE_AUTH_OPEN_PATHS,
+    API_MIDDLEWARE_AUTH_UNAUTHORIZED,
+)
 from src.core.core_config import core_config_get_settings as get_settings
 
 logger = logging.getLogger(__name__)
@@ -40,29 +56,33 @@ class ApiMiddlewareApiKey(BaseHTTPMiddleware):
 
         # No key configured; let everything through (local dev / first-run)
         if not settings.agentics_sdlc_api_key:
-            logger.debug("Auth disabled: AGENTICS_SDLC_API_KEY not set")
+            logger.debug(API_MIDDLEWARE_AUTH_LOG_DISABLED)
             return await call_next(request)
 
-        api_key = request.headers.get("X-API-Key", "")
+        api_key = request.headers.get(API_HEADER_API_KEY, "")
 
         if not api_key:
-            logger.warning(f"Unauthenticated request: {request.method} {request.url.path}")
+            logger.warning(
+                API_MIDDLEWARE_AUTH_LOG_UNAUTHENTICATED, request.method, request.url.path
+            )
             return JSONResponse(
-                status_code=401,
+                status_code=API_HTTP_401_UNAUTHORIZED,
                 content={
-                    "detail": "X-API-Key header is required",
-                    "hint": "Add header: X-API-Key: <your-key>",
+                    "detail": API_MIDDLEWARE_AUTH_MISSING_KEY_DETAIL,
+                    "hint": API_MIDDLEWARE_AUTH_MISSING_KEY_HINT,
                 },
             )
 
         if api_key != settings.agentics_sdlc_api_key:
             logger.warning(
-                f"Invalid API key attempt: {request.method} {request.url.path} "
-                f"key_prefix={api_key[:6]}..."
+                API_MIDDLEWARE_AUTH_LOG_INVALID_KEY,
+                request.method,
+                request.url.path,
+                api_key[:6],
             )
             return JSONResponse(
-                status_code=403,
-                content={"detail": "Invalid API key"},
+                status_code=API_HTTP_403_FORBIDDEN,
+                content={"detail": API_MIDDLEWARE_AUTH_INVALID_KEY_DETAIL},
             )
 
         return await call_next(request)
@@ -78,18 +98,22 @@ class ApiMiddlewareApiKey(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Basic "):
             return Response(
-                status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="metrics"'},
-                content="Unauthorized",
+                status_code=API_HTTP_401_UNAUTHORIZED,
+                headers={"WWW-Authenticate": API_MIDDLEWARE_AUTH_BASIC_REALM},
+                content=API_MIDDLEWARE_AUTH_UNAUTHORIZED,
             )
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             username, _, password = decoded.partition(":")
         except Exception:
-            return Response(status_code=401, content="Unauthorized")
+            return Response(
+                status_code=API_HTTP_401_UNAUTHORIZED, content=API_MIDDLEWARE_AUTH_UNAUTHORIZED
+            )
 
         if username != settings.metrics_username or password != settings.metrics_password:
-            logger.warning("Invalid Basic Auth attempt on /metrics")
-            return Response(status_code=403, content="Forbidden")
+            logger.warning(API_MIDDLEWARE_AUTH_LOG_INVALID_BASIC)
+            return Response(
+                status_code=API_HTTP_403_FORBIDDEN, content=API_MIDDLEWARE_AUTH_FORBIDDEN
+            )
 
         return await call_next(request)

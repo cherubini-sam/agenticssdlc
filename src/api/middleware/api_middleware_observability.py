@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 
 from prometheus_client import Counter, Gauge, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -13,9 +14,11 @@ from starlette.responses import Response
 from src.api.api_utils import (
     API_HEADER_USER_AGENT,
     API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS,
+    API_OBSERVABILITY_HEADER_REQUEST_ID,
     API_OBSERVABILITY_LOG_HTTP_REQUEST,
     API_OBSERVABILITY_LOG_LATENCY,
     API_OBSERVABILITY_LOG_METHOD,
+    API_OBSERVABILITY_LOG_REQUEST_ID,
     API_OBSERVABILITY_LOG_STATUS,
     API_OBSERVABILITY_LOG_URL,
     API_OBSERVABILITY_LOG_USER_AGENT,
@@ -110,12 +113,17 @@ class ApiMiddlewareObservability(BaseHTTPMiddleware):
     """Emits a GCP-structured httpRequest log line for every non-infra request."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        request_id = str(uuid.uuid4())
+        request.state.request_id = request_id
+
         if request.url.path in _SKIP_PATHS:
             return await call_next(request)
 
         start = time.perf_counter()
         response = await call_next(request)
         latency = time.perf_counter() - start
+
+        response.headers[API_OBSERVABILITY_HEADER_REQUEST_ID] = request_id
 
         logger.info(
             API_OBSERVABILITY_LOG_HTTP_REQUEST,
@@ -125,7 +133,17 @@ class ApiMiddlewareObservability(BaseHTTPMiddleware):
                 API_OBSERVABILITY_LOG_STATUS: response.status_code,
                 API_OBSERVABILITY_LOG_LATENCY: f"{latency:.3f}s",
                 API_OBSERVABILITY_LOG_USER_AGENT: request.headers.get(API_HEADER_USER_AGENT, ""),
+                API_OBSERVABILITY_LOG_REQUEST_ID: request_id,
             },
         )
 
         return response
+
+
+def get_active_workflow_count() -> int:
+    """Return the current number of in-flight workflows from the Prometheus gauge."""
+
+    try:
+        return int(ACTIVE_WORKFLOWS._value.get())
+    except Exception:
+        return 0

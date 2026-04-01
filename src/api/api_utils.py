@@ -4,6 +4,18 @@ from __future__ import annotations
 
 # Auth middleware
 
+API_HEADER_API_KEY: str = "X-API-Key"
+API_MIDDLEWARE_AUTH_MISSING_KEY_DETAIL: str = "X-API-Key header is required"
+API_MIDDLEWARE_AUTH_MISSING_KEY_HINT: str = "Add header: X-API-Key: <your-key>"
+API_MIDDLEWARE_AUTH_INVALID_KEY_DETAIL: str = "Invalid API key"
+API_MIDDLEWARE_AUTH_BASIC_REALM: str = 'Basic realm="metrics"'
+API_MIDDLEWARE_AUTH_UNAUTHORIZED: str = "Unauthorized"
+API_MIDDLEWARE_AUTH_FORBIDDEN: str = "Forbidden"
+API_MIDDLEWARE_AUTH_LOG_DISABLED: str = "Auth disabled: AGENTICS_SDLC_API_KEY not set"
+API_MIDDLEWARE_AUTH_LOG_UNAUTHENTICATED: str = "Unauthenticated request: %s %s"
+API_MIDDLEWARE_AUTH_LOG_INVALID_KEY: str = "Invalid API key attempt: %s %s key_prefix=%s..."
+API_MIDDLEWARE_AUTH_LOG_INVALID_BASIC: str = "Invalid Basic Auth attempt on /metrics"
+
 # No key required for these: health probes, docs, OpenAPI spec
 API_MIDDLEWARE_AUTH_OPEN_PATHS: frozenset[str] = frozenset(
     {
@@ -64,6 +76,13 @@ API_AGENT_LIBRARIAN_MODEL: str = "retrieval-only"
 
 # Rate limit headers & error codes
 
+API_RATELIMIT_HEADER_RETRY_AFTER: str = "Retry-After"
+API_RATELIMIT_HEADER_LIMIT: str = "X-RateLimit-Limit"
+API_RATELIMIT_HEADER_REMAINING: str = "X-RateLimit-Remaining"
+API_RATELIMIT_HEADER_RESET: str = "X-RateLimit-Reset"
+API_RATELIMIT_CLIENT_UNKNOWN: str = "unknown"
+API_RATELIMIT_DETAIL_EXCEEDED: str = "Rate limit exceeded"
+API_RATELIMIT_LOG_EXCEEDED: str = "Rate limit exceeded: client=%s path=%s"
 API_RATELIMIT_EXCEEDED_ERROR_CODE: str = "RATE_001"
 API_RATELIMIT_EXPOSE_HEADERS: list[str] = [
     "X-RateLimit-Limit",
@@ -97,6 +116,10 @@ API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS: frozenset[str] = frozenset(
     {"/metrics", "/health", "/readiness", "/liveness"}
 )
 
+# Observability middleware
+API_OBSERVABILITY_LOG_REQUEST_ID: str = "requestId"
+API_OBSERVABILITY_HEADER_REQUEST_ID: str = "X-Request-ID"
+
 # GCP-structured log field names
 API_OBSERVABILITY_LOG_HTTP_REQUEST: str = "httpRequest"
 API_OBSERVABILITY_LOG_METHOD: str = "requestMethod"
@@ -120,6 +143,8 @@ API_MAIN_LOG_SHUTDOWN: str = "Shutdown complete"
 
 # Router: Tasks
 
+API_ROUTERS_TASKS_INTERNAL_ERROR: str = "An internal error occurred. Please try again."
+API_ROUTERS_TASKS_LOG_AUDIT_FAILED: str = "Audit log failed for task %s: %s"
 API_ROUTERS_TASKS_LOG_FAILED: str = "Task {task_id} failed: {error}"
 API_ROUTERS_TASKS_STATUS_COMPLETED: str = "completed"
 API_ROUTERS_TASKS_STATUS_FAILED: str = "failed"
@@ -137,6 +162,37 @@ API_ROUTERS_AGENTS_LIBRARIAN: str = "LIBRARIAN"
 API_ROUTERS_AGENTS_REFLECTOR: str = "REFLECTOR"
 API_ROUTERS_AGENTS_STATUS_SUCCESS: str = "success"
 API_ROUTERS_AGENTS_STATUS_ERROR: str = "error"
+
+# HTTP status codes used across the API
+
+API_HTTP_200_OK: int = 200
+API_HTTP_401_UNAUTHORIZED: int = 401
+API_HTTP_403_FORBIDDEN: int = 403
+API_HTTP_413_REQUEST_TOO_LARGE: int = 413
+API_HTTP_429_TOO_MANY_REQUESTS: int = 429
+API_HTTP_501_NOT_IMPLEMENTED: int = 501
+API_HTTP_503_SERVICE_UNAVAILABLE: int = 503
+
+# Latency unit conversion
+
+API_MS_PER_SECOND: float = 1000.0
+
+# Schema: task request validation
+
+API_SCHEMAS_TASK_CONTENT_MAX_LENGTH: int = 4096
+API_SCHEMAS_TASK_CONTENT_CONTROL_CHAR_PATTERN: str = r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]"
+API_SCHEMAS_TASK_CONTENT_BLANK_ERROR: str = "content cannot be blank"
+API_SCHEMAS_TASK_CONTEXT_MAX_BYTES: int = 8192
+API_SCHEMAS_TASK_CONTEXT_TOO_LARGE_ERROR: str = "context payload exceeds 8 KB limit"
+
+# Request body size limit
+
+API_MAIN_MAX_REQUEST_BODY_BYTES: int = 65_536  # 64 KB
+API_MAIN_REQUEST_BODY_TOO_LARGE: str = "Request body too large"
+API_MAIN_LOG_CORS_WILDCARD: str = (
+    "CORS: wildcard origin configured — allow_credentials is disabled. "
+    "Set explicit origins to enable credentialed requests."
+)
 
 # Router: Health
 

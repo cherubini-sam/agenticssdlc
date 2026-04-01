@@ -18,6 +18,7 @@ from src.api.api_utils import (
     API_ROUTERS_AGENTS_REFLECTOR,
     API_ROUTERS_AGENTS_VALIDATOR,
 )
+from src.api.middleware.api_middleware_observability import get_active_workflow_count
 from src.api.schemas.api_schemas_agents import ApiSchemasAgentStatus, ApiSchemasSystemStatus
 from src.core.core_config import core_config_get_settings as get_settings
 
@@ -31,11 +32,12 @@ async def api_routers_agents_status(request: Request) -> ApiSchemasSystemStatus:
     settings = get_settings()
     model = settings.gemini_model
 
-    # Manager is always "active"; the rest idle until a workflow triggers them
+    # Manager is "active" when workflows are in-flight, otherwise "idle"
+    manager_status = (
+        API_AGENT_STATUS_ACTIVE if get_active_workflow_count() > 0 else API_AGENT_STATUS_IDLE
+    )
     agents = [
-        ApiSchemasAgentStatus(
-            name=API_ROUTERS_AGENTS_MANAGER, model=model, status=API_AGENT_STATUS_ACTIVE
-        ),
+        ApiSchemasAgentStatus(name=API_ROUTERS_AGENTS_MANAGER, model=model, status=manager_status),
         ApiSchemasAgentStatus(
             name=API_ROUTERS_AGENTS_ARCHITECT, model=model, status=API_AGENT_STATUS_IDLE
         ),
