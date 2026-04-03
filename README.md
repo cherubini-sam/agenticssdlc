@@ -86,7 +86,7 @@ Two independent interfaces sit on top: a **FastAPI** REST backend with SSE strea
 
 ### Video Demo
 
-https://github.com/user-attachments/assets/7c05cd25-643e-4e97-ade8-7b146ab97f39
+https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
 
 ### Screenshots
 
