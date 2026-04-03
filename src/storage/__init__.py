@@ -1,0 +1,1 @@
+"""GCS artifact persistence layer."""

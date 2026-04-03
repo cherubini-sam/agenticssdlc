@@ -49,6 +49,7 @@ from src.core.core_config import core_config_get_settings as get_settings
 from src.core.core_config import core_config_validate_settings as validate_settings
 from src.core.core_logging import core_logging_setup_logging as configure_logging
 from src.rag.rag_vector_store import RagVectorStore
+from src.storage.storage_gcs import StorageGcs
 
 # langchain emits noisy deprecation warnings on import
 warnings.filterwarnings("ignore", message=API_WARNINGS_LANGCHAIN_IGNORE)
@@ -102,6 +103,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.manager = await AgentsManager.agents_manager_create()
     app.state.vector_store = await RagVectorStore.rag_vector_store_create()
+    app.state.storage = StorageGcs()
     app.state.start_time = time.time()
 
     auth_status = (

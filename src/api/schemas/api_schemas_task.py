@@ -93,6 +93,7 @@ class ApiSchemasTaskResponse(BaseModel):
     task_id: str
     status: Literal["completed", "failed"]
     result: Optional[str]
+    artifact_uri: Optional[str] = None
     phases_completed: list[ApiSchemasWorkflowPhase]
     confidence: float
     latency_ms: float
