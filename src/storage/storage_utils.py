@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-# Object path template — artifacts/{task_id}/{phase}.json
-STORAGE_GCS_OBJECT_PATH_TEMPLATE: str = "artifacts/{task_id}/{phase}.json"
+# Object path template — artifacts/{task_id}/{phase_with_ext}
+STORAGE_GCS_OBJECT_PATH_TEMPLATE: str = "artifacts/{task_id}/{phase}"
 
 # GCS URI prefix
 STORAGE_GCS_URI_PREFIX: str = "gs://"
 
-# Phase labels used as object name segments
-STORAGE_GCS_PHASE_RESULT: str = "phase_5_result"
-STORAGE_GCS_PHASE_VERDICT: str = "phase_6_verdict"
+# Phase labels (include file extension)
+STORAGE_GCS_PHASE_RESULT: str = "phase_5_result.md"
+STORAGE_GCS_PHASE_VERDICT: str = "phase_6_verdict.json"
 
-# Content type for all artifact blobs
-STORAGE_GCS_CONTENT_TYPE: str = "application/json"
+# Content types
+STORAGE_GCS_CONTENT_TYPE_JSON: str = "application/json"
+STORAGE_GCS_CONTENT_TYPE_MD: str = "text/markdown"
 
 # Log templates
 STORAGE_LOG_GCS_INIT: str = "StorageGcs initialised for bucket: {bucket}"

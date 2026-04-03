@@ -10,7 +10,8 @@ from google.cloud import storage
 
 from src.core.core_config import core_config_get_settings as get_settings
 from src.storage.storage_utils import (
-    STORAGE_GCS_CONTENT_TYPE,
+    STORAGE_GCS_CONTENT_TYPE_JSON,
+    STORAGE_GCS_CONTENT_TYPE_MD,
     STORAGE_GCS_OBJECT_PATH_TEMPLATE,
     STORAGE_GCS_URI_PREFIX,
     STORAGE_LOG_GCS_DISABLED,
@@ -58,13 +59,19 @@ class StorageGcs:
         object_path = STORAGE_GCS_OBJECT_PATH_TEMPLATE.format(task_id=task_id, phase=phase)
 
         try:
-            payload = (
-                content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
-            )
+            if phase.endswith(".md"):
+                payload = content if isinstance(content, str) else str(content)
+                content_type = STORAGE_GCS_CONTENT_TYPE_MD
+            else:
+                payload = (
+                    content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+                )
+                content_type = STORAGE_GCS_CONTENT_TYPE_JSON
+
             client = _storage_gcs_get_client()
             bucket = client.bucket(self._bucket_name)
             blob = bucket.blob(object_path)
-            blob.upload_from_string(payload, content_type=STORAGE_GCS_CONTENT_TYPE)
+            blob.upload_from_string(payload, content_type=content_type)
 
             uri = f"{STORAGE_GCS_URI_PREFIX}{self._bucket_name}/{object_path}"
             logger.info(STORAGE_LOG_GCS_UPLOAD_OK.format(uri=uri))
