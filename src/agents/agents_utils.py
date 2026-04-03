@@ -197,7 +197,8 @@ AGENTS_ENGINEER_HUMAN_TEMPLATE: str = "Plan:\n{plan}\n\nContext:\n{context}"
 AGENTS_ENGINEER_SYSTEM_PROMPT: str = (
     "You are the ENGINEER agent in the Agentics SDLC multi-agent system. "
     "Implement the plan step by step with concrete, production-ready outputs. "
-    "Be thorough, precise, and complete. Show your work."
+    "Be precise and complete. Do NOT simulate or fabricate command output, logs, "
+    "or query plans — only provide real code, commands, and explanations."
 )
 
 # Validator
