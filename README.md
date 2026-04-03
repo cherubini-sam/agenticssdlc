@@ -55,6 +55,7 @@
     - [Confidence-Gated Retry Loop](#confidence-gated-retry-loop)
     - [RAG Pipeline](#rag-pipeline)
     - [End-to-End Observability](#end-to-end-observability)
+    - [Artifact Persistence](#artifact-persistence)
   - [RAG Pipeline Detail](#rag-pipeline-detail)
   - [Observability Architecture](#observability-architecture)
   - [Directory Structure](#directory-structure)
@@ -289,6 +290,7 @@ sequenceDiagram
 | **Vector Store (dev)** | ChromaDB (persistent local) | Persistence-backed local vector store for zero-config development. |
 | **Embedding Runtime** | PyTorch 2.3 (CPU-only in Docker) | Optimized CPU-only runtime for lightweight container deployment. |
 | **Settings** | Pydantic v2 base settings | Fail-fast environment configuration with type-safe validated singletons. |
+| **Artifact Storage** | Google Cloud Storage | Per-task persistence of Engineer and Validator outputs as JSON blobs. |
 | **Analytics - Audit** | Google BigQuery | Non-blocking asynchronous ingestion of agentic audit logs. |
 | **Analytics - State** | Supabase (Postgres) | Persistence for workflow snapshots and execution traces. |
 | **Observability - Metrics** | Prometheus | Real-time telemetry for latency, confidence, and system health. |
@@ -345,6 +347,9 @@ BGE-large normalized embeddings with Qdrant Cloud (HNSW and INT8 scalar quantiza
 
 ### End-to-End Observability
 Prometheus metrics (agent calls, latency, confidence) are pushed to Grafana Cloud after every task via a custom implementation. This solves the Cloud Run cold-start counter reset problem. BigQuery stores the full per-agent audit log; Supabase stores workflow-level snapshots.
+
+### Artifact Persistence
+Engineer and Validator outputs are persisted to GCS after every workflow run at gs://<bucket>/artifacts/{task_id}/phase_5_result.json and phase_6_verdict.json. The bucket is configurable via GCS_BUCKET — if unset, persistence is silently skipped without affecting the workflow.
 
 ---
 
