@@ -105,6 +105,8 @@ from src.api.schemas.api_schemas_task import (
     ApiSchemasTaskResponse,
     ApiSchemasWorkflowPhase,
 )
+from src.storage.storage_gcs import StorageGcs
+from src.storage.storage_utils import STORAGE_GCS_PHASE_RESULT, STORAGE_GCS_PHASE_VERDICT
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +145,7 @@ class AgentsState(TypedDict):
     validator_confidence_threshold: float | None
     max_retries_override: int | None
     verbosity: str | None
+    artifact_uri: str | None
 
 
 async def _agents_manager_protocol_phase(state: AgentsState) -> dict:
@@ -355,9 +358,16 @@ async def _agents_manager_execute_phase(state: AgentsState) -> dict:
         )
     )
 
+    artifact_uri = StorageGcs().storage_gcs_upload_artifact(
+        task_id=state["task_id"],
+        phase=STORAGE_GCS_PHASE_RESULT,
+        content=result,
+    )
+
     return {
         "phase": AGENTS_MANAGER_PHASE_5,
         "result": result,
+        "artifact_uri": artifact_uri,
         "active_agent": AGENTS_ENGINEER_AGENT_NAME,
         "messages": [
             {
@@ -399,6 +409,12 @@ async def _agents_manager_verify_phase(state: AgentsState) -> dict:
         AGENTS_MANAGER_LOG_VERIFY_DONE.format(
             score=verdict.get("score", AGENTS_MANAGER_SCORE_FALLBACK),
         )
+    )
+
+    StorageGcs().storage_gcs_upload_artifact(
+        task_id=state["task_id"],
+        phase=STORAGE_GCS_PHASE_VERDICT,
+        content=verdict,
     )
 
     return {
@@ -565,6 +581,7 @@ class AgentsManager:
             "protocol_status": None,
             "protocol_violations": None,
             "task_preview": None,
+            "artifact_uri": None,
         }
 
         config = {
@@ -656,6 +673,7 @@ class AgentsManager:
             task_id=request.task_id,
             status=status,
             result=final_state.get("result"),
+            artifact_uri=final_state.get("artifact_uri"),
             phases_completed=sorted(phases_completed),
             confidence=final_state.get("confidence", 0.0),
             latency_ms=0.0,  # filled in by the router
