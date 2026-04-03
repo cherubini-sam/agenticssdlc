@@ -43,6 +43,7 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_UTILS_MSG_VALIDATOR_FAIL,
     UI_CHAINLIT_UTILS_MSG_VALIDATOR_PASS,
     UI_CHAINLIT_UTILS_TRUNCATE_DEFAULT,
+    UI_CHAINLIT_UTILS_TRUNCATE_RESULT,
 )
 
 
@@ -189,7 +190,7 @@ def ui_chainlit_utils_format_phase_output(
         result: str = output.get("result") or ""
         if not result:
             return UI_CHAINLIT_UTILS_MSG_DISPATCH_NO_OUTPUT
-        return result
+        return ui_chainlit_utils_truncate(result, UI_CHAINLIT_UTILS_TRUNCATE_RESULT)
 
     if node_name == "verify":
         return ui_chainlit_utils_format_validator_result(output)
