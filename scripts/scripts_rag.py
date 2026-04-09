@@ -12,29 +12,48 @@ sys.path.insert(0, str(Path(__file__).parent.parent))  # noqa: E402
 
 from src.core.core_logging import core_logging_setup_logging as setup_logging  # noqa: E402
 from src.rag.rag_ingestion import rag_ingestion_ingest as ingest  # noqa: E402
-from src.rag.rag_vector_store import RagVectorStore  # noqa: E402
+from src.rag.rag_vector_store import (  # noqa: E402
+    RagVectorStore,
+    rag_vector_store_reset_and_rebuild,
+)
 
 logger = logging.getLogger(__name__)
 
-_MSG_START: str = "Starting knowledge base ingestion..."
-_MSG_COMPLETE: str = "Ingestion complete. Indexed %d document chunks."
-_MSG_FAILED: str = "Ingestion failed: %s"
-
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest knowledge base into vector store.")
-    parser.add_argument("--path", default=".agent/", help="Path to scan for .md files")
+    """CLI script to ingest knowledge base documents into the vector store."""
+
+    parser = argparse.ArgumentParser(
+        description="Ingest knowledge base into vector store.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--path", default=".agent/", help="Path to scan for .md files (default: .agent/)"
+    )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help=(
+            "Wipe the vector store collection and ingest manifest before ingesting. "
+            "Use this after structural changes to chunk parameters or knowledge-base layout."
+        ),
+    )
     args = parser.parse_args()
 
     setup_logging()
-    logger.info(_MSG_START)
 
     try:
-        vector_store = await RagVectorStore.rag_vector_store_create()
-        count = await ingest(vector_store, base_path=args.path)
-        logger.info(_MSG_COMPLETE, count)
+        if args.reset:
+            logger.info("Starting full reset and rebuild of knowledge base...")
+            count = await rag_vector_store_reset_and_rebuild(base_path=args.path)
+        else:
+            logger.info("Starting knowledge base ingestion...")
+            vector_store = await RagVectorStore.rag_vector_store_create()
+            count = await ingest(vector_store, base_path=args.path)
+
+        logger.info("Ingestion complete. Indexed %d document chunks.", count)
     except Exception as exc:
-        logger.error(_MSG_FAILED, exc, exc_info=True)
+        logger.error("Ingestion failed: %s", exc, exc_info=True)
         sys.exit(1)
 
 

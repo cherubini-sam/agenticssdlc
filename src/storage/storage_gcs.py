@@ -48,6 +48,8 @@ class StorageGcs:
 
     @property
     def is_enabled(self) -> bool:
+        """Whether GCS is enabled."""
+
         return bool(self._bucket_name)
 
     def storage_gcs_upload_artifact(self, task_id: str, phase: str, content: Any) -> str | None:

@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agents.agents_validator import AgentsValidator
+
 
 class TestValidatorAgent:
+    """Tests for AgentsValidator LLM verdict parsing."""
+
     @pytest.mark.asyncio
     async def test_verify_returns_dict(self) -> None:
-        from agents.agents_validator import AgentsValidator
+        """Clean JSON LLM response is returned as a dict with verdict and score."""
 
         agent = AgentsValidator.__new__(AgentsValidator)
         agent.llm = AsyncMock()
@@ -28,7 +32,7 @@ class TestValidatorAgent:
 
     @pytest.mark.asyncio
     async def test_verify_handles_malformed_json(self) -> None:
-        from agents.agents_validator import AgentsValidator
+        """JSON embedded in conversational text is extracted and parsed correctly."""
 
         agent = AgentsValidator.__new__(AgentsValidator)
         agent.llm = AsyncMock()

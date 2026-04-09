@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agents.agents_architect import AgentsArchitect as ArchitectAgent
+
 
 class TestArchitectAgent:
+    """Tests for AgentsArchitect plan-drafting behaviour."""
+
     @pytest.mark.asyncio
     async def test_draft_plan_returns_string(self) -> None:
-        from agents.agents_architect import AgentsArchitect as ArchitectAgent
+        """LLM response is returned as a non-empty string."""
 
         agent = ArchitectAgent.__new__(ArchitectAgent)
         agent.llm = AsyncMock()

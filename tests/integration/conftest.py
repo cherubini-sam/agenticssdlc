@@ -12,6 +12,8 @@ from api.schemas.api_schemas_task import ApiSchemasTaskResponse as TaskResponse
 
 @pytest.fixture
 def mock_manager():
+    """Mock manager for integration tests."""
+
     manager = MagicMock()
     manager.run = AsyncMock(
         return_value=TaskResponse(
@@ -37,6 +39,8 @@ def mock_manager():
 
 @pytest.fixture
 def mock_vector_store():
+    """Mock vector store for integration tests."""
+
     vs = MagicMock()
     vs.primary = "chroma"
     return vs
@@ -45,6 +49,7 @@ def mock_vector_store():
 @pytest.fixture
 def client(mock_manager, mock_vector_store):
     """Fully patched TestClient -- no real LLM calls, no real vector store."""
+
     with (
         patch(
             "agents.agents_manager.AgentsManager.agents_manager_create",

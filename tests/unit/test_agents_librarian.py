@@ -7,11 +7,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.documents import Document
 
+from agents.agents_librarian import AgentsLibrarian
+from agents.agents_utils import AGENTS_LIBRARIAN_DEFAULT_K
+
 
 class TestLibrarianAgent:
+    """Tests for AgentsLibrarian retrieval, caching, and configuration."""
+
     @pytest.mark.asyncio
     async def test_retrieve_returns_documents(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """Returns the list of Documents provided by the retriever."""
 
         mock_docs = [
             Document(page_content="doc one", metadata={}),
@@ -30,7 +35,7 @@ class TestLibrarianAgent:
 
     @pytest.mark.asyncio
     async def test_retrieve_empty_results(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """Returns an empty list when the retriever finds nothing."""
 
         mock_retriever = MagicMock()
         mock_retriever.rag_retriever_retrieve = AsyncMock(return_value=[])
@@ -43,7 +48,7 @@ class TestLibrarianAgent:
 
     @pytest.mark.asyncio
     async def test_retriever_lazy_init(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """Retriever is None before first call and initialised on first call."""
 
         mock_docs = [Document(page_content="lazy doc", metadata={})]
         mock_retriever = MagicMock()
@@ -71,7 +76,7 @@ class TestLibrarianAgent:
 
     @pytest.mark.asyncio
     async def test_retriever_reuses_cached_instance(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """The same retriever instance is reused across multiple calls."""
 
         mock_retriever = MagicMock()
         mock_retriever.rag_retriever_retrieve = AsyncMock(return_value=[])
@@ -87,19 +92,18 @@ class TestLibrarianAgent:
         assert mock_retriever.rag_retriever_retrieve.call_count == 2
 
     def test_default_k(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
-        from agents.agents_utils import AGENTS_LIBRARIAN_DEFAULT_K
+        """Default k equals the AGENTS_LIBRARIAN_DEFAULT_K constant."""
 
         agent = AgentsLibrarian()
         assert agent._k == AGENTS_LIBRARIAN_DEFAULT_K
 
     def test_custom_k(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """Custom k value is stored on the instance."""
 
         agent = AgentsLibrarian(k=10)
         assert agent._k == 10
 
     def test_agent_name(self) -> None:
-        from agents.agents_librarian import AgentsLibrarian
+        """Class-level agent_name is 'LIBRARIAN'."""
 
         assert AgentsLibrarian.agent_name == "LIBRARIAN"

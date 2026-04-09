@@ -6,10 +6,14 @@ import logging
 import os
 from unittest.mock import patch
 
+from core.core_logging import core_logging_setup_logging
+
 
 class TestCoreLoggingSetupLogging:
+    """Tests for core_logging_setup_logging local and Cloud Run paths."""
+
     def test_local_path_no_k_service(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """Without K_SERVICE, root logger is set to INFO with at least one handler."""
 
         env = {k: v for k, v in os.environ.items() if k != "K_SERVICE"}
         with patch.dict(os.environ, env, clear=True):
@@ -20,7 +24,7 @@ class TestCoreLoggingSetupLogging:
         assert len(root.handlers) >= 1
 
     def test_local_path_uses_stream_handler(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """Local path installs a StreamHandler on the root logger."""
 
         env = {k: v for k, v in os.environ.items() if k != "K_SERVICE"}
         with patch.dict(os.environ, env, clear=True):
@@ -30,7 +34,7 @@ class TestCoreLoggingSetupLogging:
         assert any(isinstance(h, logging.StreamHandler) for h in root.handlers)
 
     def test_cloud_run_path_with_k_service_set(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """K_SERVICE triggers the Cloud Run path and respects the requested log level."""
 
         # K_SERVICE presence triggers the Cloud Run logging path
         with patch.dict(os.environ, {"K_SERVICE": "agentics-sdlc-api"}):
@@ -40,7 +44,7 @@ class TestCoreLoggingSetupLogging:
         assert root.level == logging.WARNING
 
     def test_custom_log_level_debug(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """DEBUG level is applied to the root logger on the local path."""
 
         env = {k: v for k, v in os.environ.items() if k != "K_SERVICE"}
         with patch.dict(os.environ, env, clear=True):
@@ -50,7 +54,7 @@ class TestCoreLoggingSetupLogging:
         assert root.level == logging.DEBUG
 
     def test_custom_log_level_error(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """ERROR level is applied to the root logger on the local path."""
 
         env = {k: v for k, v in os.environ.items() if k != "K_SERVICE"}
         with patch.dict(os.environ, env, clear=True):
@@ -60,7 +64,7 @@ class TestCoreLoggingSetupLogging:
         assert root.level == logging.ERROR
 
     def test_noisy_loggers_suppressed(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """httpx and chromadb loggers are clamped to WARNING even when root is DEBUG."""
 
         env = {k: v for k, v in os.environ.items() if k != "K_SERVICE"}
         with patch.dict(os.environ, env, clear=True):
@@ -71,7 +75,7 @@ class TestCoreLoggingSetupLogging:
         assert logging.getLogger("chromadb").level == logging.WARNING
 
     def test_json_formatter_used_in_cloud_run(self) -> None:
-        from core.core_logging import core_logging_setup_logging
+        """Cloud Run path installs a JSON formatter that produces brace-delimited output."""
 
         with patch.dict(os.environ, {"K_SERVICE": "test-service"}):
             core_logging_setup_logging("INFO")
