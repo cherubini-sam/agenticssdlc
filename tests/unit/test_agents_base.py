@@ -5,14 +5,17 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from google.api_core.exceptions import ResourceExhausted
+
+from agents.agents_base import AgentsBase as BaseAgent
 
 
 class TestBaseAgent:
+    """Tests for AgentsBase retry logic on quota errors."""
+
     @pytest.mark.asyncio
     async def test_call_llm_retries_on_resource_exhausted(self) -> None:
-        from google.api_core.exceptions import ResourceExhausted
-
-        from agents.agents_base import AgentsBase as BaseAgent
+        """Retries once after ResourceExhausted and returns the successful response."""
 
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = [
@@ -33,9 +36,7 @@ class TestBaseAgent:
 
     @pytest.mark.asyncio
     async def test_call_llm_raises_after_max_retries(self) -> None:
-        from google.api_core.exceptions import ResourceExhausted
-
-        from agents.agents_base import AgentsBase as BaseAgent
+        """Raises an exception once the maximum retry count is exhausted."""
 
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = ResourceExhausted("quota exceeded")

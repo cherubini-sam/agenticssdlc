@@ -6,12 +6,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from agents.agents_protocol import AgentsProtocol
+
 
 class TestAgentsProtocolValidate:
+    """Tests for the async agents_protocol_validate entrypoint."""
 
     @pytest.mark.asyncio
     async def test_valid_input_returns_green(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Valid task_id and content produce system_green with no violations."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -27,7 +30,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_empty_task_id_returns_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Empty task_id yields system_error with a task_id violation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -40,7 +43,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_whitespace_task_id_returns_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Whitespace-only task_id yields a task_id violation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -52,7 +55,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_empty_content_returns_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Empty content yields a content violation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -64,7 +67,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_whitespace_content_returns_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Whitespace-only content yields a content violation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -76,7 +79,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_content_exceeds_max_length_returns_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Content beyond 4096 characters yields a length violation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -90,7 +93,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_content_at_max_length_is_valid(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Content of exactly 4096 characters passes validation."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -103,7 +106,7 @@ class TestAgentsProtocolValidate:
 
     @pytest.mark.asyncio
     async def test_multiple_violations_accumulated(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Both empty task_id and empty content produce at least two violations."""
 
         agent = AgentsProtocol()
         agent.logger = MagicMock()
@@ -115,9 +118,10 @@ class TestAgentsProtocolValidate:
 
 
 class TestAgentsProtocolCheckIntegrity:
+    """Tests for the synchronous _agents_protocol_check_integrity helper."""
 
     def test_valid_inputs_no_violations(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Valid task_id and content return an empty violations list."""
 
         agent = AgentsProtocol()
         violations = agent._agents_protocol_check_integrity("task-1", "Do something useful")
@@ -125,7 +129,7 @@ class TestAgentsProtocolCheckIntegrity:
         assert violations == []
 
     def test_empty_task_id_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Empty task_id produces exactly one task_id violation."""
 
         agent = AgentsProtocol()
         violations = agent._agents_protocol_check_integrity("", "Some content")
@@ -134,7 +138,7 @@ class TestAgentsProtocolCheckIntegrity:
         assert "task_id" in violations[0]
 
     def test_empty_content_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Empty content produces exactly one content violation."""
 
         agent = AgentsProtocol()
         violations = agent._agents_protocol_check_integrity("task-1", "")
@@ -143,7 +147,7 @@ class TestAgentsProtocolCheckIntegrity:
         assert "content" in violations[0]
 
     def test_oversized_content_violation(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Content over 4096 chars produces a violation mentioning '4096'."""
 
         agent = AgentsProtocol()
         violations = agent._agents_protocol_check_integrity("task-1", "x" * 4097)
@@ -152,7 +156,7 @@ class TestAgentsProtocolCheckIntegrity:
         assert "4096" in violations[0]
 
     def test_both_empty_returns_two_violations(self) -> None:
-        from agents.agents_protocol import AgentsProtocol
+        """Both empty task_id and content produce exactly two violations."""
 
         agent = AgentsProtocol()
         violations = agent._agents_protocol_check_integrity("", "")

@@ -82,6 +82,7 @@ node_modules/
 *.sqlite3
 .qdrant_storage/
 chroma/
+data/
 
 # Distribution
 *.egg

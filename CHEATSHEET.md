@@ -281,8 +281,15 @@ EOF
 # Terminal 1 — API
 poetry run uvicorn src.api.main:create_app --factory --reload --port 8080
 
-# Terminal 2 — ingest knowledge base (first run only)
-poetry run python scripts/scripts_rag.py --path .agent/
+# Terminal 2 — ingest knowledge base
+# Incremental ingest (default — skips already-indexed chunks):
+poetry run python scripts/scripts_rag.py
+
+# Full reset: wipe the collection + manifest, then re-ingest from scratch:
+poetry run python scripts/scripts_rag.py --reset
+
+# Target a custom path:
+poetry run python scripts/scripts_rag.py --path .agent/ --reset
 
 # Terminal 3 — health check
 curl -sf http://localhost:8080/health
@@ -595,15 +602,21 @@ Every push to `main` triggers the GitHub Actions pipeline automatically (4 seque
 ```bash
 QDRANT_URL=$(gcloud secrets versions access latest --secret=qdrant-url --project=$PROJECT_ID)
 QDRANT_API_KEY=$(gcloud secrets versions access latest --secret=qdrant-api-key --project=$PROJECT_ID)
+
+# Incremental (skips already-indexed chunks — safe for routine redeploys):
 QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py --path .agent/
+  poetry run python scripts/scripts_rag.py
+
+# Full reset (use when chunk params or directory layout changed):
+QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
+  poetry run python scripts/scripts_rag.py --reset
 ```
 
 ---
 
-## 15. Qdrant — Erase Collection & Reingest from Zero
+## 15. Erase Collection & Reingest from Zero
 
-Wipes the `agentics_sdlc_kb` collection entirely and rebuilds it from scratch.
+Wipes the `agentics_sdlc_kb` collection and the local ingest manifest entirely, then rebuilds from scratch.
 
 ```bash
 PROJECT_ID="agentics-sdlc"
@@ -612,24 +625,17 @@ PROJECT_ID="agentics-sdlc"
 QDRANT_URL=$(gcloud secrets versions access latest --secret=qdrant-url --project=$PROJECT_ID)
 QDRANT_API_KEY=$(gcloud secrets versions access latest --secret=qdrant-api-key --project=$PROJECT_ID)
 
-# 1. Delete the collection
-curl -s -X DELETE "${QDRANT_URL}/collections/agentics_sdlc_kb" \
-  -H "api-key: ${QDRANT_API_KEY}" \
-  | python3 -c "import sys,json; r=json.load(sys.stdin); print('Deleted:', r)"
-
-# 2. Verify collection is gone
-curl -s "${QDRANT_URL}/collections" \
-  -H "api-key: ${QDRANT_API_KEY}" \
-  | python3 -c "import sys,json; r=json.load(sys.stdin); print('Collections:', [c['name'] for c in r['result']['collections']])"
-
-# 3. Reingest — collection is auto-created on first upsert
+# Full reset: drop collection + delete manifest + re-ingest
 QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py --path .agent/
+  poetry run python scripts/scripts_rag.py --reset
 
-# 4. Verify point count
-curl -s "${QDRANT_URL}/collections/agentics_sdlc_kb" \
-  -H "api-key: ${QDRANT_API_KEY}" \
-  | python3 -c "import sys,json; r=json.load(sys.stdin); print('Points:', r['result']['points_count'])"
+# Incremental ingest only (skips already-indexed chunks):
+QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
+  poetry run python scripts/scripts_rag.py
+
+# Target a custom path:
+QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
+  poetry run python scripts/scripts_rag.py --path .agent/ --reset
 ```
 
 ---

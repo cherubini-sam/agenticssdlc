@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agents.agents_engineer import AgentsEngineer as EngineerAgent
+
 
 class TestEngineerAgent:
+    """Tests for AgentsEngineer plan execution behaviour."""
+
     @pytest.mark.asyncio
     async def test_execute_returns_string(self) -> None:
-        from agents.agents_engineer import AgentsEngineer as EngineerAgent
+        """LLM execution result is returned as a string."""
 
         agent = EngineerAgent.__new__(EngineerAgent)
         agent.llm = AsyncMock()

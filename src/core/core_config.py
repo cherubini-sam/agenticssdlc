@@ -21,12 +21,7 @@ from src.core.core_utils import (
 
 
 class CoreSettings(BaseSettings):
-    """
-    Pydantic settings model loaded from environment variables.
-
-    :return: Validated CoreSettings instance.
-    :rtype: CoreSettings
-    """
+    """Pydantic settings model loaded from environment variables."""
 
     model_config = SettingsConfigDict(
         env_file=CORE_CONFIG_ENV_FILE, env_file_encoding=CORE_CONFIG_ENV_ENCODING, extra="ignore"
@@ -48,6 +43,9 @@ class CoreSettings(BaseSettings):
     # Qdrant — leave empty to fall back to local ChromaDB
     qdrant_url: str = Field(default="")
     qdrant_api_key: str = Field(default="")
+
+    # ChromaDB — local persistence path; only used when qdrant_url is empty
+    chroma_path: str = Field(default="./data/chroma")
 
     # BigQuery
     bigquery_dataset: str = Field(default=CORE_CONFIG_DEFAULT_BIGQUERY_DATASET)

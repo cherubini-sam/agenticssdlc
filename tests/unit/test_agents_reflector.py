@@ -6,11 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agents.agents_reflector import AgentsReflector
+
 
 class TestReflectorAgent:
+    """Tests for AgentsReflector critique pipeline output shape."""
+
     @pytest.mark.asyncio
     async def test_audit_returns_confidence(self) -> None:
-        from agents.agents_reflector import AgentsReflector
+        """Critique result contains a confidence value in [0, 1]."""
 
         agent = AgentsReflector.__new__(AgentsReflector)
         agent.llm = AsyncMock()

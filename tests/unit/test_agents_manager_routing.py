@@ -4,6 +4,13 @@ from __future__ import annotations
 
 import pytest
 
+from agents.agents_manager import (
+    _agents_manager_increment_retry,
+    _agents_manager_route_after_critique,
+    _agents_manager_route_after_protocol,
+    _agents_manager_route_after_verify,
+)
+
 
 def _make_state(**overrides) -> dict:
     """Minimal AgentsState-shaped dict with sensible defaults."""
@@ -34,34 +41,38 @@ def _make_state(**overrides) -> dict:
 
 
 class TestRouteAfterProtocol:
+    """Routing decisions after the protocol validation phase."""
+
     def test_green_routes_to_task(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_protocol
+        """system_green status routes to the 'task' node."""
 
         state = _make_state(protocol_status="system_green")
         assert _agents_manager_route_after_protocol(state) == "task"
 
     def test_error_routes_to_end_failed(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_protocol
+        """system_error status routes to 'end_failed'."""
 
         state = _make_state(protocol_status="system_error")
         assert _agents_manager_route_after_protocol(state) == "end_failed"
 
     def test_none_status_routes_to_end_failed(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_protocol
+        """None protocol_status routes to 'end_failed'."""
 
         state = _make_state(protocol_status=None)
         assert _agents_manager_route_after_protocol(state) == "end_failed"
 
 
 class TestRouteAfterCritique:
+    """Routing decisions after the reflector critique phase."""
+
     def test_no_critique_routes_to_execute(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Missing critique dict routes directly to 'execute'."""
 
         state = _make_state(critique=None)
         assert _agents_manager_route_after_critique(state) == "execute"
 
     def test_approved_true_routes_to_execute(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Critique with approved=True routes to 'execute' regardless of confidence."""
 
         state = _make_state(
             critique={"approved": True, "confidence": 0.5, "errors": []},
@@ -70,7 +81,7 @@ class TestRouteAfterCritique:
         assert _agents_manager_route_after_critique(state) == "execute"
 
     def test_high_confidence_routes_to_execute(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Confidence above threshold routes to 'execute'."""
 
         state = _make_state(
             critique={"confidence": 0.95, "errors": []},
@@ -79,7 +90,7 @@ class TestRouteAfterCritique:
         assert _agents_manager_route_after_critique(state) == "execute"
 
     def test_low_confidence_with_retries_routes_to_retry(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Low confidence with retries remaining routes to 'retry_increment'."""
 
         state = _make_state(
             critique={"confidence": 0.3, "errors": ["bad plan"], "approved": False},
@@ -88,7 +99,7 @@ class TestRouteAfterCritique:
         assert _agents_manager_route_after_critique(state) == "retry_increment"
 
     def test_retries_exhausted_forces_execute(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Exhausted retries force 'execute' even when confidence is low."""
 
         # MAX_RETRIES defaults to 3; at retry_count=3 we give up and proceed
         state = _make_state(
@@ -98,7 +109,7 @@ class TestRouteAfterCritique:
         assert _agents_manager_route_after_critique(state) == "execute"
 
     def test_custom_confidence_threshold_respected(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """Confidence above a custom threshold routes to 'execute'."""
 
         # 0.7 beats custom threshold 0.65
         state = _make_state(
@@ -109,7 +120,7 @@ class TestRouteAfterCritique:
         assert _agents_manager_route_after_critique(state) == "execute"
 
     def test_custom_max_retries_override(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_critique
+        """max_retries_override=1 forces 'execute' when retry_count reaches it."""
 
         # max_retries_override=1, retry_count=1 -> forced execute
         state = _make_state(
@@ -121,26 +132,28 @@ class TestRouteAfterCritique:
 
 
 class TestRouteAfterVerify:
+    """Routing decisions after the validator verification phase."""
+
     def test_no_error_routes_to_end_success(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_verify
+        """No error routes to 'end_success'."""
 
         state = _make_state(error=None, retry_count=0)
         assert _agents_manager_route_after_verify(state) == "end_success"
 
     def test_error_with_retries_available_routes_to_retry(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_verify
+        """Validation error with retries remaining routes to 'retry_increment'."""
 
         state = _make_state(error="Validation failed", retry_count=0)
         assert _agents_manager_route_after_verify(state) == "retry_increment"
 
     def test_error_retries_exhausted_force_accept(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_verify
+        """Validation error after exhausting default retries forces 'end_success'."""
 
         state = _make_state(error="Validation failed", retry_count=3)
         assert _agents_manager_route_after_verify(state) == "end_success"
 
     def test_error_custom_max_retries_exhausted(self) -> None:
-        from agents.agents_manager import _agents_manager_route_after_verify
+        """Validation error after exhausting custom max_retries forces 'end_success'."""
 
         state = _make_state(
             error="Validation failed",
@@ -151,9 +164,11 @@ class TestRouteAfterVerify:
 
 
 class TestIncrementRetry:
+    """Tests for the retry counter increment helper."""
+
     @pytest.mark.asyncio
     async def test_increments_counter(self) -> None:
-        from agents.agents_manager import _agents_manager_increment_retry
+        """retry_count is incremented by 1 from a non-zero value."""
 
         state = _make_state(retry_count=1)
         result = await _agents_manager_increment_retry(state)
@@ -162,7 +177,7 @@ class TestIncrementRetry:
 
     @pytest.mark.asyncio
     async def test_increments_from_zero(self) -> None:
-        from agents.agents_manager import _agents_manager_increment_retry
+        """retry_count advances from 0 to 1 on first retry."""
 
         state = _make_state(retry_count=0)
         result = await _agents_manager_increment_retry(state)

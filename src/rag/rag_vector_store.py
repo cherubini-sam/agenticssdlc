@@ -10,6 +10,7 @@ import chromadb
 from langchain_chroma import Chroma
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.models import (
     Distance,
     ScalarQuantization,
@@ -22,8 +23,12 @@ from src.core.core_config import core_config_get_settings as get_settings
 from src.rag.rag_embeddings import rag_embeddings_get_embeddings
 from src.rag.rag_utils import (
     RAG_LOG_VECTOR_STORE_CHROMA_INIT,
+    RAG_LOG_VECTOR_STORE_CHROMA_PATH_FALLBACK,
     RAG_LOG_VECTOR_STORE_CREATED_QDRANT,
     RAG_LOG_VECTOR_STORE_QDRANT_INIT,
+    RAG_LOG_VECTOR_STORE_REBUILD_COMPLETE,
+    RAG_LOG_VECTOR_STORE_RESET,
+    RAG_LOG_VECTOR_STORE_RESET_START,
     RAG_RETRIEVER_DEFAULT_K,
     RAG_VECTOR_STORE_CHROMA_PATH,
     RAG_VECTOR_STORE_COLLECTION,
@@ -47,20 +52,22 @@ async def _rag_vector_store_create_qdrant(settings: Any, embeddings: Any) -> "Ra
         api_key=settings.qdrant_api_key,
     )
 
-    # Create collection on first deploy. INT8 quantization keeps RAM usage sane.
     existing = [c.name for c in client.get_collections().collections]
     if COLLECTION not in existing:
-        client.create_collection(
-            collection_name=COLLECTION,
-            vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
-            quantization_config=ScalarQuantization(
-                scalar=ScalarQuantizationConfig(
-                    type=ScalarType.INT8,
-                    always_ram=True,
-                )
-            ),
-        )
-        logger.info(RAG_LOG_VECTOR_STORE_CREATED_QDRANT, COLLECTION)
+        try:
+            client.create_collection(
+                collection_name=COLLECTION,
+                vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
+                quantization_config=ScalarQuantization(
+                    scalar=ScalarQuantizationConfig(
+                        type=ScalarType.INT8,
+                        always_ram=True,
+                    )
+                ),
+            )
+            logger.info(RAG_LOG_VECTOR_STORE_CREATED_QDRANT, COLLECTION)
+        except UnexpectedResponse:
+            pass
 
     store = QdrantVectorStore(
         client=client,
@@ -68,14 +75,20 @@ async def _rag_vector_store_create_qdrant(settings: Any, embeddings: Any) -> "Ra
         embedding=embeddings,
     )
     logger.info(RAG_LOG_VECTOR_STORE_QDRANT_INIT, settings.qdrant_url)
-    return RagVectorStore(store, "qdrant")
+    return RagVectorStore(store, "qdrant", _client=client)
 
 
-def _rag_vector_store_create_chroma(embeddings: Any) -> "RagVectorStore":
+async def _rag_vector_store_create_chroma(embeddings: Any) -> "RagVectorStore":
     """Create a persistent ChromaDB-backed store."""
 
+    try:
+        chroma_path = get_settings().chroma_path
+    except Exception as e:
+        logger.warning(RAG_LOG_VECTOR_STORE_CHROMA_PATH_FALLBACK, e)
+        chroma_path = RAG_VECTOR_STORE_CHROMA_PATH
+
     client = chromadb.PersistentClient(
-        path=RAG_VECTOR_STORE_CHROMA_PATH,
+        path=chroma_path,
         settings=chromadb.Settings(anonymized_telemetry=False),
     )
     store = Chroma(
@@ -83,16 +96,17 @@ def _rag_vector_store_create_chroma(embeddings: Any) -> "RagVectorStore":
         collection_name=COLLECTION,
         embedding_function=embeddings,
     )
-    logger.info(RAG_LOG_VECTOR_STORE_CHROMA_INIT, RAG_VECTOR_STORE_CHROMA_PATH)
-    return RagVectorStore(store, "chroma")
+    logger.info(RAG_LOG_VECTOR_STORE_CHROMA_INIT, chroma_path)
+    return RagVectorStore(store, "chroma", _client=client)
 
 
 class RagVectorStore:
     """Thin wrapper that normalises the Qdrant / ChromaDB interface."""
 
-    def __init__(self, store: Any, primary: str) -> None:
+    def __init__(self, store: Any, primary: str, *, _client: Any = None) -> None:
         self._store = store
-        self.primary = primary  # "qdrant" or "chroma", used in log messages
+        self._client = _client
+        self.primary = primary
 
     @classmethod
     async def rag_vector_store_create(cls) -> "RagVectorStore":
@@ -103,7 +117,7 @@ class RagVectorStore:
 
         if settings.qdrant_url:
             return await _rag_vector_store_create_qdrant(settings, embeddings)
-        return _rag_vector_store_create_chroma(embeddings)
+        return await _rag_vector_store_create_chroma(embeddings)
 
     async def rag_vector_store_add_documents(self, docs: list) -> int:
         """Add documents asynchronously regardless of backend."""
@@ -111,27 +125,51 @@ class RagVectorStore:
         if hasattr(self._store, "aadd_documents"):
             await self._store.aadd_documents(docs)
         else:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, self._store.add_documents, docs)
         return len(docs)
 
     def rag_vector_store_get_retriever(self, k: int = RAG_RETRIEVER_DEFAULT_K) -> Any:
+        """Return a Qdrant / ChromaDB retriever."""
+
         return self._store.as_retriever(search_kwargs={"k": k})
 
+    async def rag_vector_store_reset(self) -> None:
+        """Drop and recreate the collection, wiping all stored vectors."""
 
-# Initialized once and reused; the lock prevents a race when multiple coroutines
-# call rag_vector_store_get_instance() concurrently during startup.
+        loop = asyncio.get_running_loop()
+
+        if self.primary == "qdrant":
+            client: QdrantClient = self._client
+            await loop.run_in_executor(None, client.delete_collection, COLLECTION)
+            await loop.run_in_executor(
+                None,
+                lambda: client.create_collection(
+                    collection_name=COLLECTION,
+                    vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
+                    quantization_config=ScalarQuantization(
+                        scalar=ScalarQuantizationConfig(
+                            type=ScalarType.INT8,
+                            always_ram=True,
+                        )
+                    ),
+                ),
+            )
+        elif self.primary == "chroma":
+            chroma_client: chromadb.ClientAPI = self._client
+            await loop.run_in_executor(None, chroma_client.delete_collection, COLLECTION)
+            embeddings = rag_embeddings_get_embeddings()
+            self._store = Chroma(
+                client=chroma_client,
+                collection_name=COLLECTION,
+                embedding_function=embeddings,
+            )
+
+        logger.info(RAG_LOG_VECTOR_STORE_RESET, COLLECTION, self.primary)
+
+
 _instance: RagVectorStore | None = None
-_init_lock: asyncio.Lock | None = None
-
-
-def _get_init_lock() -> asyncio.Lock:
-    """Return (creating if needed) the per-event-loop init lock."""
-
-    global _init_lock
-    if _init_lock is None:
-        _init_lock = asyncio.Lock()
-    return _init_lock
+_init_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def rag_vector_store_get_instance() -> RagVectorStore:
@@ -140,7 +178,23 @@ async def rag_vector_store_get_instance() -> RagVectorStore:
     global _instance
     if _instance is not None:
         return _instance
-    async with _get_init_lock():
-        if _instance is None:  # re-check after acquiring lock
+    async with _init_lock:
+        if _instance is None:
             _instance = await RagVectorStore.rag_vector_store_create()
     return _instance
+
+
+async def rag_vector_store_reset_and_rebuild(base_path: str = ".agent/") -> int:
+    """Reset the vector store and ingest manifest, then re-ingest from scratch."""
+
+    from src.rag.rag_ingestion import rag_ingestion_ingest, rag_ingestion_reset_manifest
+
+    store = await rag_vector_store_get_instance()
+    logger.info(RAG_LOG_VECTOR_STORE_RESET_START, store.primary)
+
+    await store.rag_vector_store_reset()
+    rag_ingestion_reset_manifest()
+
+    count = await rag_ingestion_ingest(store, base_path)
+    logger.info(RAG_LOG_VECTOR_STORE_REBUILD_COMPLETE, count)
+    return count
