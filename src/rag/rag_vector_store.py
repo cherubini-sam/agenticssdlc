@@ -47,22 +47,27 @@ DIM: int = RAG_VECTOR_STORE_DIM
 async def _rag_vector_store_create_qdrant(settings: Any, embeddings: Any) -> "RagVectorStore":
     """Provision (if needed) and connect to the Qdrant collection."""
 
+    loop = asyncio.get_running_loop()
     client = QdrantClient(
         url=settings.qdrant_url,
         api_key=settings.qdrant_api_key,
     )
 
-    existing = [c.name for c in client.get_collections().collections]
+    collections = await loop.run_in_executor(None, client.get_collections)
+    existing = [c.name for c in collections.collections]
     if COLLECTION not in existing:
         try:
-            client.create_collection(
-                collection_name=COLLECTION,
-                vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
-                quantization_config=ScalarQuantization(
-                    scalar=ScalarQuantizationConfig(
-                        type=ScalarType.INT8,
-                        always_ram=True,
-                    )
+            await loop.run_in_executor(
+                None,
+                lambda: client.create_collection(
+                    collection_name=COLLECTION,
+                    vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
+                    quantization_config=ScalarQuantization(
+                        scalar=ScalarQuantizationConfig(
+                            type=ScalarType.INT8,
+                            always_ram=True,
+                        )
+                    ),
                 ),
             )
             logger.info(RAG_LOG_VECTOR_STORE_CREATED_QDRANT, COLLECTION)

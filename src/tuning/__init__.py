@@ -1,15 +1,4 @@
-"""LoRA Fine-Tuning Module for Agentics SDLC.
-
-Provides automated data synthesis, training orchestration, and evaluation
-for transitioning from deterministic Protocol validation to LLM-based gatekeeping.
-
-Key Components:
-- tuning_utils: Constants
-- tuning_config: Settings and schemas
-- tuning_generator: LLM-driven synthetic data generation
-- tuning_train: Vertex AI SFT orchestration
-- tuning_evaluate: Classification metrics computation
-"""
+"""LoRA Fine-Tuning Module for Agentics SDLC."""
 
 from src.tuning.tuning_config import (
     ProtocolDecision,
@@ -17,9 +6,6 @@ from src.tuning.tuning_config import (
     TuningSettings,
     tuning_config_settings_get,
 )
-from src.tuning.tuning_evaluate import TuningEvaluate, tuning_evaluate_tuned_endpoint
-from src.tuning.tuning_generator import TuningGenerator
-from src.tuning.tuning_train import TuningTrain
 
 __all__ = [
     "ProtocolDecision",
@@ -31,3 +17,21 @@ __all__ = [
     "TuningEvaluate",
     "tuning_evaluate_tuned_endpoint",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy-import heavy modules only when accessed directly."""
+
+    if name == "TuningTrain":
+        from src.tuning.tuning_train import TuningTrain
+
+        return TuningTrain
+    if name == "TuningGenerator":
+        from src.tuning.tuning_generator import TuningGenerator
+
+        return TuningGenerator
+    if name in ("TuningEvaluate", "tuning_evaluate_tuned_endpoint"):
+        from src.tuning import tuning_evaluate
+
+        return getattr(tuning_evaluate, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
