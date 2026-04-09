@@ -54,6 +54,7 @@
     - [Reflector Persona Framework](#reflector-persona-framework)
     - [Confidence-Gated Retry Loop](#confidence-gated-retry-loop)
     - [RAG Pipeline](#rag-pipeline)
+    - [LoRA Fine-tuning for Protocol Gatekeeper](#lora-fine-tuning-for-protocol-gatekeeper)
     - [End-to-End Observability](#end-to-end-observability)
     - [Artifact Persistence](#artifact-persistence)
   - [RAG Pipeline Detail](#rag-pipeline-detail)
@@ -283,6 +284,7 @@ sequenceDiagram
 | **Orchestration** | LangGraph 0.2 | Stateful graph engine for multi-phase agent coordination and retry logic. |
 | **LLM Framework** | LangChain 0.3 | Unified interface for LLM interaction and asynchronous Vertex AI integration. |
 | **LLM Backend** | Google Gemini (Vertex AI) | High-context, function-calling engine with native GCP security. |
+| **LLM Fine-tuning** | Vertex AI SFT + LoRA | Parameter-efficient adapter training with synthetic data generation and evaluation. |
 | **API Layer** | FastAPI and Uvicorn | Async REST framework with OpenAPI generation and lifecycle management. |
 | **Chat UI** | Chainlit 1.3 | Real-time streaming interface for per-phase agent tracking. |
 | **Embeddings** | Sentence Transformers / BGE-large | 1024-dim dense vector model for high-recall RAG retrieval. |
@@ -344,6 +346,12 @@ Rather than hard-failing on a weak plan, the system loops: Reflector critique, A
 
 ### RAG Pipeline
 BGE-large normalized embeddings with Qdrant Cloud (HNSW and INT8 scalar quantization) in production, and ChromaDB locally. The model is baked into the Docker image to eliminate cold-start download latency. Backend selection is automatic based on environment config.
+
+### LoRA Fine-tuning for Protocol Gatekeeper
+The tuning module enables parameter-efficient adaptation of the Protocol gatekeeper model through Vertex AI Supervised Fine-Tuning (SFT) with Low-Rank Adapters (LoRA). The pipeline consists of three phases:
+- **Phase 1 — Synthetic Data Generation:** Extracts policies from the .agent directory and generates diverse training examples (85% compliant, 10% adversarial, 5% edge-case) using a high-capability synthesizer model.
+- **Phase 2 — LoRA Training:** Submits a Vertex AI SFT job with configurable hyperparameters (epochs, learning rate multiplier, adapter rank). Polls until completion and deploys a tuned endpoint.
+- **Phase 3 — Evaluation:** Validates the tuned model against a held-out validation set. Computes precision, recall, and F1 score. Passes if F1 ≥ 0.95 (configurable threshold).
 
 ### End-to-End Observability
 Prometheus metrics (agent calls, latency, confidence) are pushed to Grafana Cloud after every task via a custom implementation. This solves the Cloud Run cold-start counter reset problem. BigQuery stores the full per-agent audit log; Supabase stores workflow-level snapshots.
@@ -446,6 +454,13 @@ agenticssdlc/
 │   │   ├── rag_embeddings.py    # BGE-large wrapper (lru_cache)
 │   │   ├── rag_retriever.py     # Top-k async retrieval with 30s timeout
 │   │   └── rag_ingestion.py     # Document ingestion pipeline
+│   ├── tuning/
+│   │   ├── tuning_config.py     # Pydantic schemas + TuningSettings singleton
+│   │   ├── tuning_utils.py      # Constants (zero-magic-strings policy)
+│   │   ├── tuning_generator.py  # Synthetic data generation (compliant/adversarial/edge-case)
+│   │   ├── tuning_train.py      # Vertex AI SFT orchestration + LoRA deployment
+│   │   ├── tuning_evaluate.py   # Model evaluation (precision/recall/F1)
+│   │   └── notebook/            # Interactive exploration notebooks
 │   ├── analytics/
 │   │   ├── analytics_bigquery_ingest.py   # Non-blocking BQ audit logger
 │   │   ├── analytics_supabase_ingest.py   # Workflow snapshot upserts

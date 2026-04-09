@@ -21,8 +21,14 @@
   - [12. BigQuery Scheduled Queries](#12-bigquery-scheduled-queries)
   - [13. Grafana Dashboard](#13-grafana-dashboard)
   - [14. Production Redeploy (CI/CD)](#14-production-redeploy-cicd)
-  - [15. Qdrant — Erase Collection \& Reingest from Zero](#15-qdrant--erase-collection--reingest-from-zero)
+  - [15. Erase Collection \& Reingest from Zero](#15-erase-collection--reingest-from-zero)
   - [16. Rebuild, Push \& Deploy Both Services](#16-rebuild-push--deploy-both-services)
+  - [17. LoRA Fine-tuning Pipeline](#17-lora-fine-tuning-pipeline)
+    - [Full Pipeline (Generate, Train, Evaluate)](#full-pipeline-generate-train-evaluate)
+    - [Step 1: Generate Synthetic Data](#step-1-generate-synthetic-data)
+    - [Step 2: Train LoRA Adapter](#step-2-train-lora-adapter)
+    - [Step 3: Evaluate Model](#step-3-evaluate-model)
+    - [Hyperparameter Reference](#hyperparameter-reference)
 
 ---
 
@@ -717,3 +723,19 @@ UI_URL=$(gcloud run services describe agentics-sdlc-ui \
   --region=us-central1 --format="value(status.url)" --project=$PROJECT_ID)
 curl -f "${UI_URL}/health" && echo "UI OK"
 ```
+
+---
+
+## 17. LoRA Fine-tuning Pipeline
+
+Fine-tune the Protocol gatekeeper using Vertex AI SFT + LoRA.
+
+```bash
+# Interactive notebook for exploration and testing
+poetry run jupyter notebook src/tuning/notebook/notebook_exploration.ipynb
+```
+
+Runs three phases sequentially:
+1. Generate synthetic data (compliant/adversarial/edge-case examples)
+2. Train LoRA adapter on Vertex AI
+3. Evaluate model (F1 score ≥ 0.95 to pass)
