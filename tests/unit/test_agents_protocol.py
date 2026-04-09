@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agents.agents_protocol import AgentsProtocol
+from src.agents.agents_protocol import AgentsProtocol
+from src.tuning.tuning_config import ProtocolDecision
 
 
 class TestAgentsProtocolValidate:
@@ -162,3 +163,172 @@ class TestAgentsProtocolCheckIntegrity:
         violations = agent._agents_protocol_check_integrity("", "")
 
         assert len(violations) == 2
+
+
+class TestAgentsProtocolTunedModel:
+    """Tests for tuned LoRA model integration via LLM gatekeeper."""
+
+    @pytest.mark.asyncio
+    async def test_tuned_model_green_decision(self) -> None:
+        """With endpoint configured, tuned model returning GREEN maps to system_green."""
+
+        with patch("src.agents.agents_protocol.core_config_get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.tuned_protocol_endpoint_id = (
+                "projects/test/locations/us-central1/endpoints/123"
+            )
+            settings.gemini_model = "gemini-2.5-flash"
+            settings.gcp_project_id = "test-project"
+            settings.gcp_region = "us-central1"
+            mock_settings.return_value = settings
+
+            agent = AgentsProtocol()
+            agent.logger = MagicMock()
+
+            decision = ProtocolDecision(
+                protocol_status="GREEN",
+                protocol_violations=[],
+            )
+            agent._gatekeeper = AsyncMock(ainvoke=AsyncMock(return_value=decision))
+
+            result = await agent.agents_protocol_validate(
+                task_id="task-001", content="Valid request"
+            )
+
+            assert result["protocol_status"] == "system_green"
+            assert result["violations"] == []
+            assert result["boot_agent"] == "PROTOCOL"
+
+    @pytest.mark.asyncio
+    async def test_tuned_model_error_decision(self) -> None:
+        """With endpoint configured, tuned model returning ERROR maps to system_error."""
+
+        with patch("src.agents.agents_protocol.core_config_get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.tuned_protocol_endpoint_id = (
+                "projects/test/locations/us-central1/endpoints/123"
+            )
+            settings.gemini_model = "gemini-2.5-flash"
+            settings.gcp_project_id = "test-project"
+            settings.gcp_region = "us-central1"
+            mock_settings.return_value = settings
+
+            agent = AgentsProtocol()
+            agent.logger = MagicMock()
+
+            decision = ProtocolDecision(
+                protocol_status="ERROR",
+                protocol_violations=["Violates policy X"],
+            )
+            agent._gatekeeper = AsyncMock(ainvoke=AsyncMock(return_value=decision))
+
+            result = await agent.agents_protocol_validate(
+                task_id="task-001", content="Adversarial content"
+            )
+
+            assert result["protocol_status"] == "system_error"
+            assert len(result["violations"]) >= 1
+            assert "Violates policy X" in result["violations"]
+
+    @pytest.mark.asyncio
+    async def test_fallback_to_heuristic_on_exception(self) -> None:
+        """When LLM raises exception, fallback to legacy heuristic."""
+
+        with patch("src.agents.agents_protocol.core_config_get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.tuned_protocol_endpoint_id = (
+                "projects/test/locations/us-central1/endpoints/123"
+            )
+            settings.gemini_model = "gemini-2.5-flash"
+            settings.gcp_project_id = "test-project"
+            settings.gcp_region = "us-central1"
+            mock_settings.return_value = settings
+
+            agent = AgentsProtocol()
+            agent.logger = MagicMock()
+
+            agent._gatekeeper = AsyncMock(ainvoke=AsyncMock(side_effect=Exception("LLM error")))
+
+            result = await agent.agents_protocol_validate(
+                task_id="task-001", content="Valid request"
+            )
+
+            assert result["protocol_status"] == "system_green"
+            assert result["violations"] == []
+
+    @pytest.mark.asyncio
+    async def test_no_endpoint_uses_legacy_heuristic(self) -> None:
+        """When no endpoint configured, use legacy heuristic directly."""
+
+        with patch("src.agents.agents_protocol.core_config_get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.tuned_protocol_endpoint_id = ""
+            settings.gemini_model = "gemini-2.5-flash"
+            settings.gcp_project_id = "test-project"
+            settings.gcp_region = "us-central1"
+            mock_settings.return_value = settings
+
+            agent = AgentsProtocol()
+            agent.logger = MagicMock()
+
+            result = await agent.agents_protocol_validate(
+                task_id="task-001", content="Valid request"
+            )
+
+            assert result["protocol_status"] == "system_green"
+            assert result["violations"] == []
+
+    @pytest.mark.asyncio
+    async def test_structural_guard_bypasses_llm(self) -> None:
+        """Structural violations (empty content) bypass LLM entirely."""
+
+        with patch("src.agents.agents_protocol.core_config_get_settings") as mock_settings:
+            settings = MagicMock()
+            settings.tuned_protocol_endpoint_id = (
+                "projects/test/locations/us-central1/endpoints/123"
+            )
+            settings.gemini_model = "gemini-2.5-flash"
+            settings.gcp_project_id = "test-project"
+            settings.gcp_region = "us-central1"
+            mock_settings.return_value = settings
+
+            agent = AgentsProtocol()
+            agent.logger = MagicMock()
+            agent._gatekeeper = AsyncMock()
+
+            result = await agent.agents_protocol_validate(task_id="task-001", content="")
+
+            assert result["protocol_status"] == "system_error"
+            assert any("content" in v for v in result["violations"])
+            agent._gatekeeper.ainvoke.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_fail_closed_on_catastrophic_failure(self) -> None:
+        """Ultimate safety: fail-closed always returns ERROR."""
+
+        agent = AgentsProtocol()
+        agent.logger = MagicMock()
+
+        result = agent._agents_protocol_fail_closed({"content": "test"})
+
+        assert result.protocol_status == "ERROR"
+        assert len(result.protocol_violations) >= 1
+        assert "unavailable" in result.protocol_violations[0].lower()
+
+    def test_legacy_heuristic_valid_content(self) -> None:
+        """Legacy heuristic on valid content returns GREEN."""
+
+        agent = AgentsProtocol()
+        result = agent._agents_protocol_legacy_heuristic({"content": "Valid request"})
+
+        assert result.protocol_status == "GREEN"
+        assert result.protocol_violations == []
+
+    def test_legacy_heuristic_empty_content(self) -> None:
+        """Legacy heuristic on empty content returns ERROR."""
+
+        agent = AgentsProtocol()
+        result = agent._agents_protocol_legacy_heuristic({"content": ""})
+
+        assert result.protocol_status == "ERROR"
+        assert len(result.protocol_violations) >= 1

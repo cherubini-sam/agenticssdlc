@@ -11,6 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from src.agents.agents_utils import AGENTS_PROTOCOL_AGENT_NAME
 from src.api.api_utils import (
     API_HEADER_USER_AGENT,
     API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS,
@@ -32,6 +33,9 @@ from src.api.api_utils import (
     API_PROMETHEUS_AGENT_LATENCY_DESC,
     API_PROMETHEUS_AGENT_LATENCY_LABELS,
     API_PROMETHEUS_AGENT_LATENCY_METRIC,
+    API_PROMETHEUS_PROTOCOL_DECISIONS_DESC,
+    API_PROMETHEUS_PROTOCOL_DECISIONS_LABELS,
+    API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC,
 )
@@ -62,6 +66,11 @@ ACTIVE_WORKFLOWS = Gauge(
     API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC,
 )
+PROTOCOL_DECISIONS = Counter(
+    API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC,
+    API_PROMETHEUS_PROTOCOL_DECISIONS_DESC,
+    API_PROMETHEUS_PROTOCOL_DECISIONS_LABELS,
+)
 
 _SKIP_PATHS: frozenset[str] = API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS
 
@@ -88,6 +97,23 @@ def record_metrics(
             status=status,
             latency_s=latency_s,
             confidence=confidence,
+            url=settings.grafana_prometheus_url,
+            instance_id=settings.grafana_instance_id,
+            api_key=settings.grafana_api_key,
+        )
+
+
+def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
+    """Increment protocol decision counter and optionally push to Grafana."""
+
+    PROTOCOL_DECISIONS.labels(status=status, gatekeeper_mode=gatekeeper_mode).inc()
+    settings = get_settings()
+    if settings.grafana_prometheus_url:
+        schedule_remote_write(
+            agent=AGENTS_PROTOCOL_AGENT_NAME,
+            phase="0",
+            status=status,
+            latency_s=0.0,
             url=settings.grafana_prometheus_url,
             instance_id=settings.grafana_instance_id,
             api_key=settings.grafana_api_key,

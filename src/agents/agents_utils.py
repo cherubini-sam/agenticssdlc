@@ -244,6 +244,30 @@ AGENTS_PROTOCOL_LOG_BOOT_START: str = "[PROTOCOL] Phase 1 — task_id: {task_id}
 AGENTS_PROTOCOL_LOG_BOOT_PASSED: str = "[PROTOCOL] Boot integrity PASSED — status: {status}"
 AGENTS_PROTOCOL_LOG_BOOT_FAILED: str = "[PROTOCOL] Boot integrity FAILED. Violations: {violations}"
 
+# Protocol LLM Configuration
+AGENTS_PROTOCOL_LLM_TEMPERATURE: float = 0.0
+AGENTS_PROTOCOL_LLM_MAX_OUTPUT_TOKENS: int = 1024
+AGENTS_PROTOCOL_LLM_MAX_RETRIES: int = 5
+
+# Protocol Gatekeeper Modes (for observability labels)
+AGENTS_PROTOCOL_GATEKEEPER_MODE_LLM: str = "tuned_model"
+AGENTS_PROTOCOL_GATEKEEPER_MODE_HEURISTIC: str = "legacy_heuristic"
+AGENTS_PROTOCOL_GATEKEEPER_MODE_FAIL_CLOSED: str = "fail_closed"
+
+# Protocol Decision Values (from ProtocolDecision schema — "GREEN"/"ERROR")
+AGENTS_PROTOCOL_DECISION_GREEN: str = "GREEN"
+AGENTS_PROTOCOL_DECISION_ERROR: str = "ERROR"
+
+# Protocol LLM Log Messages
+AGENTS_PROTOCOL_LOG_LLM_INVOKE: str = "[PROTOCOL] Invoking tuned gatekeeper for task_id={task_id}"
+AGENTS_PROTOCOL_LOG_LLM_RESULT: str = "[PROTOCOL] Tuned model decision: {status} (mode={mode})"
+AGENTS_PROTOCOL_LOG_FALLBACK_TRIGGERED: str = "[PROTOCOL] Fallback triggered ({mode}): {error}"
+AGENTS_PROTOCOL_LOG_FAIL_CLOSED: str = "[PROTOCOL] Fail-closed triggered — returning ERROR"
+AGENTS_PROTOCOL_LOG_NO_ENDPOINT: str = (
+    "[PROTOCOL] No tuned endpoint configured — using legacy heuristic"
+)
+AGENTS_PROTOCOL_FAIL_CLOSED_VIOLATION: str = "VIOLATION:PROTOCOL — LLM gatekeeper unavailable"
+
 # Reflector
 
 AGENTS_REFLECTOR_CONTEXT_TRUNCATION: int = 2000
