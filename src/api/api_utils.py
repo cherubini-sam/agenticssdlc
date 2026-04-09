@@ -109,6 +109,11 @@ API_PROMETHEUS_AGENT_CONFIDENCE_LABELS: list[str] = ["agent_name"]
 API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC: str = "agentics_sdlc_active_workflows"
 API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC: str = "In-flight LangGraph workflow count"
 
+# Protocol Decision Counter
+API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC: str = "agentics_sdlc_protocol_decisions_total"
+API_PROMETHEUS_PROTOCOL_DECISIONS_DESC: str = "Protocol gatekeeper decisions by status and mode"
+API_PROMETHEUS_PROTOCOL_DECISIONS_LABELS: list[str] = ["status", "gatekeeper_mode"]
+
 # Observability middleware
 
 # Skip these to keep structured logs clean (they'd just be noise)

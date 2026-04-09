@@ -16,6 +16,7 @@ from src.core.core_utils import (
     CORE_CONFIG_ENV_ENCODING,
     CORE_CONFIG_ENV_FILE,
     CORE_CONFIG_MISSING_PROJECT_ID_ERROR,
+    CORE_CONFIG_TUNED_PROTOCOL_ENDPOINT_ID_DEFAULT,
     CORE_LOGGING_DEFAULT_LOG_LEVEL,
 )
 
@@ -34,6 +35,12 @@ class CoreSettings(BaseSettings):
 
     # Single Gemini model for all agents — auth handled via ADC
     gemini_model: str = Field(default=CORE_CONFIG_DEFAULT_GEMINI_MODEL)
+
+    # Tuned Protocol Gatekeeper endpoint — empty disables LLM path (local dev uses legacy heuristic)
+    tuned_protocol_endpoint_id: str = Field(
+        default=CORE_CONFIG_TUNED_PROTOCOL_ENDPOINT_ID_DEFAULT,
+        alias="TUNED_PROTOCOL_ENDPOINT_ID",
+    )
 
     # Supabase
     supabase_url: str = Field(default="")

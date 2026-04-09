@@ -187,7 +187,7 @@ jobs:
             --min-instances 0 \
             --max-instances 10 \
             --timeout 300 \
-            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*" \
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*,TUNED_PROTOCOL_ENDPOINT_ID=${{ vars.TUNED_PROTOCOL_ENDPOINT_ID }}" \
             --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest"
 
       - name: Verify API deployment
