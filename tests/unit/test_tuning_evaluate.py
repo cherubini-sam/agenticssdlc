@@ -1,24 +1,41 @@
 """Unit tests for model evaluation."""
 
-from unittest.mock import AsyncMock, patch
+from contextlib import ExitStack
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.tuning.tuning_config import tuning_config_settings_get
 from src.tuning.tuning_evaluate import TuningEvaluate, tuning_evaluate_tuned_endpoint
 
 
 class TestTuningEvaluate:
     """Test model evaluation."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_settings_cache(self):
+        """Clear lru_cache before and after every test for isolation."""
+
+        tuning_config_settings_get.cache_clear()
+        yield
+        tuning_config_settings_get.cache_clear()
+
     @pytest.fixture
     def evaluator(self):
-        """Create evaluator instance."""
+        """Create evaluator with ChatVertexAI fully mocked for the lifetime of each test."""
 
-        with patch("src.tuning.tuning_evaluate.ChatVertexAI"):
-            return TuningEvaluate(
+        mock_model_client = MagicMock()
+
+        with ExitStack() as stack:
+            stack.enter_context(
+                patch("src.tuning.tuning_evaluate.ChatVertexAI", return_value=mock_model_client)
+            )
+            ev = TuningEvaluate(
                 endpoint_id="projects/test/locations/us-central1/endpoints/ep123",
                 project_id="test-project",
             )
+            ev.model_client = mock_model_client
+            yield ev
 
     def test_evaluator_initialization(self, evaluator):
         """Test evaluator initialization."""
@@ -57,20 +74,6 @@ class TestTuningEvaluate:
         assert metrics["false_negatives"] == 1
         assert metrics["recall"] < 1.0
 
-    @pytest.mark.asyncio
-    async def test_load_dataset_from_file(self, evaluator):
-        """Test loading dataset from local file."""
-
-        mock_content = (
-            '{"user_intent": "task1", "protocol_decision": {"protocol_status": "GREEN"}}\n'
-            '{"user_intent": "task2", "protocol_decision": {"protocol_status": "ERROR"}}'
-        )
-
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("builtins.open", create=True) as mock_open:
-                mock_open.return_value.__enter__.return_value = mock_content.split("\n")
-
-    @pytest.mark.asyncio
     async def test_invoke_model(self, evaluator):
         """Test model invocation."""
 
@@ -80,7 +83,6 @@ class TestTuningEvaluate:
         status = await evaluator._tuning_evaluate_invoke_model("Test intent")
         assert status == "GREEN"
 
-    @pytest.mark.asyncio
     async def test_evaluate_on_dataset(self, evaluator):
         """Test evaluation on dataset."""
 
@@ -110,13 +112,90 @@ class TestTuningEvaluate:
             assert "f1" in metrics
             assert "passes_threshold" in metrics
 
+    def test_evaluator_no_endpoint(self):
+        """Test evaluator initialization without endpoint produces None model_client."""
+
+        mock_model = MagicMock()
+        with patch("src.tuning.tuning_evaluate.ChatVertexAI", return_value=mock_model):
+            evaluator = TuningEvaluate(project_id="test-project")
+            assert evaluator.model_client is None
+
+    async def test_evaluate_on_dataset_no_endpoint(self, evaluator):
+        """Test evaluation fails gracefully without endpoint."""
+
+        evaluator.model_client = None
+        result = await evaluator.tuning_evaluate_on_dataset(gcs_uri="gs://bucket/val.jsonl")
+
+        assert result["status"] == "ERROR"
+        assert "message" in result
+
+    async def test_invoke_model_json_dict_response(self, evaluator):
+        """Test model invocation with dict response."""
+
+        mock_response = MagicMock()
+        mock_response.dict.return_value = {"protocol_status": "ERROR"}
+        evaluator.model_client.ainvoke = AsyncMock(return_value=mock_response)
+
+        status = await evaluator._tuning_evaluate_invoke_model("Test intent")
+        assert status == "ERROR"
+
+    async def test_invoke_model_invalid_response(self, evaluator):
+        """Test model invocation with invalid JSON falls back to GREEN."""
+
+        evaluator.model_client.ainvoke = AsyncMock(return_value="invalid json")
+
+        status = await evaluator._tuning_evaluate_invoke_model("Test intent")
+        assert status == "GREEN"  # Default fallback
+
+    def test_compute_metrics_zero_metrics(self, evaluator):
+        """Test metrics when all predictions are GREEN (no ERROR cases)."""
+
+        predictions = ["GREEN", "GREEN", "GREEN"]
+        ground_truth = ["GREEN", "GREEN", "GREEN"]
+
+        metrics = evaluator._tuning_evaluate_compute_metrics(predictions, ground_truth)
+        assert metrics["true_positives"] == 0
+        assert metrics["false_positives"] == 0
+        assert metrics["false_negatives"] == 0
+
+    async def test_load_dataset_gcs_failure(self, evaluator):
+        """Test dataset loading from GCS handles client errors gracefully."""
+
+        with patch("google.cloud.storage.Client") as mock_client:
+            mock_client.return_value.bucket.side_effect = Exception("GCS error")
+            examples = await evaluator._tuning_evaluate_load_dataset(
+                gcs_uri="gs://bucket/missing.jsonl"
+            )
+            assert examples == []
+
+    async def test_evaluate_on_dataset_inference_exception(self, evaluator):
+        """Test evaluation counts examples even when inference raises."""
+
+        test_examples = [{"user_intent": "Test", "protocol_decision": {"protocol_status": "GREEN"}}]
+
+        evaluator.model_client.ainvoke = AsyncMock(side_effect=Exception("API error"))
+
+        with patch.object(
+            evaluator, "_tuning_evaluate_load_dataset", new_callable=AsyncMock
+        ) as mock_load:
+            mock_load.return_value = test_examples
+            metrics = await evaluator.tuning_evaluate_on_dataset(gcs_uri="gs://bucket/val.jsonl")
+
+            assert metrics["evaluated_examples"] == 1
+            assert metrics["f1"] == 0.0
+
 
 class TestTuningEvaluateTunedEndpoint:
     """Test standalone evaluation function."""
 
-    @pytest.mark.asyncio
+    @pytest.fixture(autouse=True)
+    def _clear_settings_cache(self):
+        tuning_config_settings_get.cache_clear()
+        yield
+        tuning_config_settings_get.cache_clear()
+
     async def test_evaluate_tuned_endpoint_function(self):
-        """Test standalone evaluation function."""
+        """Test standalone evaluation function delegates to TuningEvaluate correctly."""
 
         with patch(
             "src.tuning.tuning_evaluate.TuningEvaluate.tuning_evaluate_on_dataset",

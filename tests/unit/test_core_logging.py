@@ -6,7 +6,21 @@ import logging
 import os
 from unittest.mock import patch
 
+import pytest
+
 from core.core_logging import core_logging_setup_logging
+
+
+@pytest.fixture(autouse=True)
+def _reset_root_logger():
+    """Snapshot the root-logger state before each test and restore it afterwards."""
+
+    root = logging.getLogger()
+    original_level = root.level
+    original_handlers = root.handlers[:]
+    yield
+    root.handlers = original_handlers
+    root.setLevel(original_level)
 
 
 class TestCoreLoggingSetupLogging:
@@ -36,7 +50,6 @@ class TestCoreLoggingSetupLogging:
     def test_cloud_run_path_with_k_service_set(self) -> None:
         """K_SERVICE triggers the Cloud Run path and respects the requested log level."""
 
-        # K_SERVICE presence triggers the Cloud Run logging path
         with patch.dict(os.environ, {"K_SERVICE": "agentics-sdlc-api"}):
             core_logging_setup_logging("WARNING")
 
@@ -70,7 +83,6 @@ class TestCoreLoggingSetupLogging:
         with patch.dict(os.environ, env, clear=True):
             core_logging_setup_logging("DEBUG")
 
-        # httpx and chromadb spam at DEBUG; we clamp them to WARNING
         assert logging.getLogger("httpx").level == logging.WARNING
         assert logging.getLogger("chromadb").level == logging.WARNING
 
@@ -82,7 +94,6 @@ class TestCoreLoggingSetupLogging:
 
         root = logging.getLogger()
         assert len(root.handlers) >= 1
-        # Cloud Run path should produce structured JSON logs
         handler = root.handlers[0]
         record = logging.LogRecord(
             name="test",

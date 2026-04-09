@@ -10,6 +10,15 @@ from src.tuning.tuning_config import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    """Clear the lru_cache before and after every test."""
+
+    tuning_config_settings_get.cache_clear()
+    yield
+    tuning_config_settings_get.cache_clear()
+
+
 class TestProtocolDecision:
     """Test ProtocolDecision schema."""
 
@@ -42,6 +51,23 @@ class TestProtocolDecision:
         with pytest.raises(ValidationError):
             ProtocolDecision(protocol_status="INVALID", protocol_violations=[])
 
+    def test_protocol_decision_model_dump(self):
+        """Test ProtocolDecision serialization."""
+
+        decision = ProtocolDecision(protocol_status="GREEN", protocol_violations=["rule1", "rule2"])
+        dumped = decision.model_dump()
+        assert dumped["protocol_status"] == "GREEN"
+        assert len(dumped["protocol_violations"]) == 2
+
+    def test_protocol_decision_state_dict_structure(self):
+        """Test ProtocolDecision state dict has correct structure."""
+
+        decision = ProtocolDecision(protocol_status="ERROR", protocol_violations=["violation1"])
+        state = decision.tuning_config_to_state_dict()
+        assert "protocol_status" in state
+        assert "protocol_violations" in state
+        assert state["protocol_violations"][0] == "violation1"
+
 
 class TestSyntheticDataPoint:
     """Test SyntheticDataPoint schema."""
@@ -71,6 +97,27 @@ class TestSyntheticDataPoint:
             )
             assert point.category == category
 
+    def test_synthetic_data_point_with_violations(self):
+        """Test SyntheticDataPoint with violations."""
+
+        decision = ProtocolDecision(
+            protocol_status="ERROR", protocol_violations=["Security violation", "Policy violation"]
+        )
+        point = SyntheticDataPoint(
+            user_intent="Malicious request", protocol_decision=decision, category="adversarial"
+        )
+        assert point.protocol_decision.protocol_status == "ERROR"
+        assert len(point.protocol_decision.protocol_violations) == 2
+
+    def test_synthetic_data_point_empty_violations(self):
+        """Test SyntheticDataPoint with empty violations."""
+
+        decision = ProtocolDecision(protocol_status="GREEN", protocol_violations=[])
+        point = SyntheticDataPoint(
+            user_intent="Safe task", protocol_decision=decision, category="compliant"
+        )
+        assert point.protocol_decision.protocol_violations == []
+
 
 class TestTuningSettings:
     """Test TuningSettings configuration."""
@@ -96,7 +143,7 @@ class TestTuningSettings:
         assert "val.jsonl" in val_uri
 
     def test_tuning_settings_singleton(self):
-        """Test that settings is a singleton."""
+        """Test that settings is a singleton (lru_cache returns same object)."""
 
         settings1 = tuning_config_settings_get()
         settings2 = tuning_config_settings_get()
