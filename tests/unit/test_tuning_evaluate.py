@@ -116,9 +116,17 @@ class TestTuningEvaluate:
         """Test evaluator initialization without endpoint produces None model_client."""
 
         mock_model = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.tuned_protocol_endpoint_id = ""
+        mock_settings.gcp_project_id = "test-project"
+        mock_settings.gcp_region = "us-central1"
+
         with patch("src.tuning.tuning_evaluate.ChatVertexAI", return_value=mock_model):
-            evaluator = TuningEvaluate(project_id="test-project")
-            assert evaluator.model_client is None
+            with patch(
+                "src.tuning.tuning_evaluate.tuning_config_settings_get", return_value=mock_settings
+            ):
+                evaluator = TuningEvaluate(project_id="test-project")
+                assert evaluator.model_client is None
 
     async def test_evaluate_on_dataset_no_endpoint(self, evaluator):
         """Test evaluation fails gracefully without endpoint."""
