@@ -23,7 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 def _varint(value: int) -> bytes:
-    """Protobuf varint encoding (unsigned)."""
+    """Protobuf varint encoding (unsigned).
+
+    Args:
+        value: Unsigned integer to encode.
+
+    Returns:
+        Protobuf varint bytes.
+    """
     buf = []
     while True:
         bits = value & 0x7F
@@ -37,26 +44,68 @@ def _varint(value: int) -> bytes:
 
 
 def _field_string(field_num: int, text: str) -> bytes:
+    """Encode a UTF-8 string as a protobuf length-delimited field.
+
+    Args:
+        field_num: Protobuf field number.
+        text: UTF-8 string value.
+
+    Returns:
+        Encoded length-delimited field bytes.
+    """
     encoded = text.encode()
     return _varint((field_num << 3) | 2) + _varint(len(encoded)) + encoded
 
 
 def _field_double(field_num: int, value: float) -> bytes:
+    """Encode a 64-bit float as a protobuf fixed64 field.
+
+    Args:
+        field_num: Protobuf field number.
+        value: 64-bit float.
+
+    Returns:
+        Encoded 64-bit field bytes.
+    """
     return _varint((field_num << 3) | 1) + struct.pack("<d", value)
 
 
 def _field_int64(field_num: int, value: int) -> bytes:
+    """Encode an integer as a protobuf varint field.
+
+    Args:
+        field_num: Protobuf field number.
+        value: Integer to encode.
+
+    Returns:
+        Encoded varint field bytes.
+    """
     return _varint((field_num << 3) | 0) + _varint(value)
 
 
 def _field_message(field_num: int, data: bytes) -> bytes:
+    """Encode pre-serialized nested message bytes as a protobuf length-delimited field.
+
+    Args:
+        field_num: Protobuf field number.
+        data: Pre-encoded nested message bytes.
+
+    Returns:
+        Encoded length-delimited message field bytes.
+    """
     return _varint((field_num << 3) | 2) + _varint(len(data)) + data
 
 
 def _build_write_request(metrics: list[dict]) -> bytes:
     """Serialize a list of metric dicts into a Prometheus WriteRequest protobuf.
 
-    Each dict needs: labels (dict with __name__), value (float), ts_ms (int).
+    Args:
+        metrics: List of dicts each with labels (dict mapping str to str,
+            must include __name__), value (float), and ts_ms (int millisecond
+            timestamp).
+
+    Returns:
+        Serialized WriteRequest protobuf bytes ready for snappy compression.
     """
     write_request = b""
     for m in metrics:
@@ -88,6 +137,16 @@ async def remote_write_push(
 
     Cloud Run kills in-process counters on cold start, so we push
     immediately after every task to avoid losing data.
+
+    Args:
+        agent: Agent name label.
+        phase: Workflow phase label.
+        status: Call outcome label.
+        latency_s: Latency in seconds.
+        confidence: Optional confidence score. None skips the metric.
+        url: Grafana remote-write endpoint URL.
+        instance_id: Grafana Prometheus instance ID.
+        api_key: Grafana API key for Basic Auth.
     """
     try:
         import httpx  # lazy import — keeps the module testable without httpx installed
@@ -158,7 +217,18 @@ def schedule_remote_write(
     instance_id: str,
     api_key: str,
 ) -> None:
-    """Drop a remote-write push onto the current event loop. No-ops if there isn't one."""
+    """Drop a remote-write push onto the current event loop. No-ops if there isn't one.
+
+    Args:
+        agent: Agent name label.
+        phase: Workflow phase label.
+        status: Call outcome label.
+        latency_s: Latency in seconds.
+        confidence: Optional confidence score. None skips the metric.
+        url: Grafana remote-write endpoint URL.
+        instance_id: Grafana Prometheus instance ID.
+        api_key: Grafana API key for Basic Auth.
+    """
 
     try:
         loop = asyncio.get_running_loop()
@@ -209,7 +279,15 @@ async def _remote_write_gauge(
 def schedule_remote_write_gauge(
     metric_name: str, value: float, url: str, instance_id: str, api_key: str
 ) -> None:
-    """Fire-and-forget gauge push onto the running event loop."""
+    """Fire-and-forget gauge push onto the running event loop.
+
+    Args:
+        metric_name: Prometheus metric name (must include __name__).
+        value: Gauge value to set.
+        url: Grafana remote-write endpoint URL.
+        instance_id: Grafana Prometheus instance ID.
+        api_key: Grafana API key for Basic Auth.
+    """
 
     try:
         loop = asyncio.get_running_loop()

@@ -23,7 +23,16 @@ class AgentsEngineer(AgentsBase):
     async def agents_engineer_execute(
         self, plan: str, context: str, verbosity: str = AGENTS_MANAGER_VERBOSITY_DEFAULT
     ) -> str:
-        """Execute the plan with RAG context. Context is truncated to stay within token budget."""
+        """Execute the plan with RAG context.
+
+        Args:
+            plan: Approved architect plan detailing the steps to implement.
+            context: RAG context truncated to stay within the token budget.
+            verbosity: Controls output depth (concise/standard/detailed).
+
+        Returns:
+            Final implementation output as a plain string.
+        """
 
         system = AGENTS_ENGINEER_SYSTEM_PROMPT + AGENTS_ENGINEER_VERBOSITY_SUFFIX.get(verbosity, "")
         ctx = (context or "")[:AGENTS_ENGINEER_CONTEXT_TRUNCATION]

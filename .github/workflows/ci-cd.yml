@@ -6,22 +6,24 @@ on:
   pull_request:
     branches: [main, master]
 
+# Python and Poetry versions are pinned so every CI run uses the exact same
+# resolver, avoiding "works on my machine" dependency drift between runs.
 env:
   PYTHON_VERSION: "3.11"
   POETRY_VERSION: "1.8.3"
   REGISTRY: gcr.io
   IMAGE_NAME: ${{ vars.GCP_PROJECT_ID }}/agentics-sdlc-api
   IMAGE_NAME_UI: ${{ vars.GCP_PROJECT_ID }}/agentics-sdlc-ui
+  TUNED_PROTOCOL_ENDPOINT_ID: ${{ vars.TUNED_PROTOCOL_ENDPOINT_ID }}
 
 permissions:
   contents: read
   actions: write
+  # id-token:write required for Workload Identity Federation (keyless GCP auth)
   id-token: write
 
 jobs:
-  # ============================================================
   # Job 1: Quality — lint + type check
-  # ============================================================
   quality:
     name: Code Quality
     runs-on: ubuntu-latest
@@ -54,9 +56,7 @@ jobs:
       - name: Run Flake8 (lint)
         run: poetry run flake8 .
 
-  # ============================================================
   # Job 2: Test — unit + integration
-  # ============================================================
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -101,6 +101,7 @@ jobs:
         run: poetry install --with dev
 
       - name: Run unit tests
+        # --cov-fail-under=70: 70% is the agreed minimum gate; raise as coverage grows
         run: poetry run pytest tests/unit/ -v --cov=src --cov-report=xml --cov-fail-under=70
 
       - name: Upload coverage
@@ -109,9 +110,7 @@ jobs:
           file: coverage.xml
         continue-on-error: true
 
-  # ============================================================
   # Job 3: Build — Docker image
-  # ============================================================
   build:
     name: Docker Build
     runs-on: ubuntu-latest
@@ -156,9 +155,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ============================================================
   # Job 4: Deploy — Cloud Run (main branch only)
-  # ============================================================
   deploy:
     name: Deploy to Cloud Run
     runs-on: ubuntu-latest
@@ -187,7 +184,7 @@ jobs:
             --min-instances 0 \
             --max-instances 10 \
             --timeout 300 \
-            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*,TUNED_PROTOCOL_ENDPOINT_ID=${{ vars.TUNED_PROTOCOL_ENDPOINT_ID }}" \
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*,TUNED_PROTOCOL_ENDPOINT_ID=${{ env.TUNED_PROTOCOL_ENDPOINT_ID }}" \
             --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest"
 
       - name: Verify API deployment
@@ -198,6 +195,8 @@ jobs:
           curl -f "$URL/health" || exit 1
 
       - name: Deploy UI to Cloud Run
+        # --session-affinity keeps Chainlit WebSocket connections on the same instance;
+        # --timeout 900 accommodates long-running agent pipeline streamed responses.
         run: |
           gcloud run deploy agentics-sdlc-ui \
             --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_UI }}:${{ github.sha }} \

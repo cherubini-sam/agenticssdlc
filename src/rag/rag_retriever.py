@@ -26,6 +26,12 @@ class RagRetriever:
     """Top-k semantic retrieval backed by BGE-large embeddings."""
 
     def __init__(self, vector_store: Any, k: int = RAG_RETRIEVER_DEFAULT_K) -> None:
+        """
+        Args:
+            vector_store: RagVectorStore instance providing the retriever and
+                add_documents interface.
+            k: Default number of top documents to return.
+        """
         self._vector_store = vector_store
         self._k = k
         self.retriever = vector_store.rag_vector_store_get_retriever(k=k)
@@ -37,7 +43,19 @@ class RagRetriever:
         k: int | None = None,
         score_threshold: float = RAG_RETRIEVER_DEFAULT_SCORE_THRESHOLD,
     ) -> list[Document]:
-        """Return up to *k* semantically relevant documents for *query*."""
+        """Return up to *k* semantically relevant documents for *query*.
+
+        Args:
+            query: Natural-language search string.
+            k: Per-call override for number of results. None uses the instance
+                default set at construction time.
+            score_threshold: Minimum metadata score for filtering. 0.0 disables
+                score-based filtering entirely.
+
+        Returns:
+            Ordered list of Documents ranked by semantic similarity; returns []
+            on empty query, timeout, or retrieval error.
+        """
 
         if not query.strip():
             logger.warning(RAG_LOG_RETRIEVER_EMPTY_QUERY)

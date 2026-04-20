@@ -40,7 +40,20 @@ class AgentsBase:
         max_retries: int = AGENTS_BASE_DEFAULT_MAX_RETRIES,
         timeout: int | None = None,
     ) -> str:
-        """Invoke the LLM with exponential backoff on 429s and a hard timeout per attempt."""
+        """Invoke the LLM with exponential backoff on 429s and a hard timeout per attempt.
+
+        Args:
+            messages: List of LangChain BaseMessage objects forming the prompt conversation.
+            max_retries: Max number of retry attempts on 429/timeout before giving up.
+            timeout: Per-attempt timeout in seconds. None uses a 300 s default.
+
+        Returns:
+            LLM response content as a plain string.
+
+        Raises:
+            RuntimeError: If the timeout is exceeded after all retries.
+            RuntimeError: If the quota is exhausted after all retries.
+        """
 
         _timeout = timeout or 300
         for attempt in range(max_retries + 1):

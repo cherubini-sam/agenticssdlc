@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS agent_audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_session_id   ON agent_audit_log (session_id);
 CREATE INDEX IF NOT EXISTS idx_audit_agent_name   ON agent_audit_log (agent_name);
 CREATE INDEX IF NOT EXISTS idx_audit_created_at   ON agent_audit_log (created_at DESC);
+-- Partial index: confidence filtering is only meaningful on successful calls;
+-- excluding error/retry rows keeps the index small and avoids skewed stats.
 CREATE INDEX IF NOT EXISTS idx_audit_confidence   ON agent_audit_log (confidence) WHERE status = 'success';
 
 -- RAG evaluation results

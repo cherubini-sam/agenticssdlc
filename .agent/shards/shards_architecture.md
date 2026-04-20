@@ -50,17 +50,14 @@
   │   ├── rules_style.md
   │   └── rules_workflow_manager.md
   ├── shards/                 # [SPEC] Model Technical Specifications
-  │   ├── shards_architecture.md
-  │   ├── shards_claude_haiku_4.md
-  │   ├── shards_claude_opus_4.md
-  │   ├── shards_claude_sonnet_4.md
-  │   ├── shards_gemini_3_flash.md
-  │   ├── shards_gemini_3_pro.md
-  │   ├── shards_gemini_ultra.md
-  │   └── shards_generic_llm.md
-  └── skills/                 # [CAPABILITIES] Task-Specific Logic & Scripts (tech-specific implementations)
-      ├── index.json          # [REGISTRY] Skill discovery index (SSOT)
-      └── skills_<name>/      # SKILL.md + scripts/ + resources/ (×15+)
+  │   ├── shards_architecture.md          # System map (this file)
+  │   └── shards_generic_llm.md           # Universal fallback shard — applies to any model
+  │                                       # To add a named shard: create shards_<provider>_<tier>.md
+  │                                       # and register it in config/settings.json shard_catalog
+  └── skills/                 # [CAPABILITIES] Task-Specific Logic — flat structure
+      ├── index.json          # [REGISTRY] Skill discovery index (SSOT) — 4 active skills
+      └── skills_<domain>/    # One directory per skill, contains only SKILL.md
+          └── SKILL.md        # Complete self-contained skill definition
 ```
 
 </directory_tree>

@@ -61,6 +61,16 @@ class _RequestBodySizeLimit(BaseHTTPMiddleware):
     """Reject requests whose Content-Length exceeds the allowed maximum."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        """Enforce the maximum allowed request body size.
+
+        Args:
+            request: Incoming Starlette request.
+            call_next: Next middleware handler.
+
+        Returns:
+            413 JSONResponse if Content-Length exceeds the configured limit;
+            otherwise the next middleware's response.
+        """
         content_length = request.headers.get("content-length")
         if content_length is not None and int(content_length) > API_MAIN_MAX_REQUEST_BODY_BYTES:
             return JSONResponse(
@@ -72,7 +82,13 @@ class _RequestBodySizeLimit(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Boot everything we need before the first request, tear down on shutdown."""
+    """Boot everything we need before the first request, tear down on shutdown.
+
+    Args:
+        app: FastAPI application instance receiving state objects. Initializes
+            BigQuery audit logger, Supabase audit logger, AgentsManager,
+            RagVectorStore, StorageGcs, and start_time on app.state.
+    """
 
     settings = get_settings()
     configure_logging(settings.log_level)
@@ -121,7 +137,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    """Wire up middleware, mount Prometheus, register routers."""
+    """Wire up middleware, mount Prometheus, register routers.
+
+    Returns:
+        Configured FastAPI application with CORS, auth, rate-limit, observability
+        middleware, Prometheus mount, and all routers registered.
+    """
 
     app = FastAPI(
         title=API_APP_TITLE,

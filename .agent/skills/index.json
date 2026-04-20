@@ -1,262 +1,47 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
-  "version": "1.0.0",
-  "last_updated": "2026-02-04T16:28:46Z",
+  "version": "4.1.0",
+  "last_updated": "2026-04-20T14:40:00Z",
   "skills": [
     {
-      "human_name": "API Integration",
-      "id": "skills_api_integration",
-      "description": "Best practices for safe and efficient API integration patterns.",
-      "path": "skills_api_integration/SKILL.md",
-      "tags": [
-        "api",
-        "integration",
-        "http"
-      ],
-      "tools": [],
-      "permissions": [
-        "read"
-      ],
-      "scripts": [
-        "scripts/scripts_client.py",
-        "scripts/scripts_ratelimit.py"
-      ]
-    },
-    {
       "human_name": "Code Execution",
-      "id": "skills_code_execution",
-      "description": "Safe execution of code snippets and scripts with sandbox constraints.",
-      "path": "skills_code_execution/SKILL.md",
-      "tags": [
-        "code",
-        "execution",
-        "sandbox"
-      ],
-      "tools": [
-        "run_command"
-      ],
-      "permissions": [
-        "execute"
-      ],
-      "scripts": [
-        "scripts/scripts_validator.py"
-      ],
-      "resources": [
-        "resources/resources_template.json"
-      ]
-    },
-    {
-      "human_name": "Database Migration",
-      "id": "skills_database_migration",
-      "description": "Plan and execute safe database schema migrations.",
-      "path": "skills_database_migration/SKILL.md",
-      "tags": [
-        "database",
-        "migration",
-        "schema"
-      ],
+      "id": "skills-code-execution",
+      "description": "Production readiness gate for ENGINEER Phase 5 sign-off — static analysis across forbidden patterns, security, test coverage, style, and architecture boundaries.",
+      "path": "skills-code-execution/SKILL.md",
+      "alwaysApply": false,
+      "tags": ["code-analysis", "production-readiness", "engineer", "phase5", "quality-gate"],
       "tools": [],
-      "permissions": [
-        "read",
-        "write"
-      ],
-      "resources": [
-        "resources/resources_patterns.sql"
-      ]
-    },
-    {
-      "human_name": "Error Recovery",
-      "id": "skills_error_recovery",
-      "description": "Systematic debugging and error recovery with automated diagnostics.",
-      "path": "skills_error_recovery/SKILL.md",
-      "tags": [
-        "error",
-        "recovery",
-        "debugging",
-        "troubleshooting"
-      ],
-      "tools": [],
-      "permissions": [
-        "read"
-      ],
-      "scripts": [
-        "scripts/scripts_diagnostics.py",
-        "scripts/scripts_stack_analyzer.py"
-      ],
-      "resources": [
-        "resources/recovery_templates.md"
-      ]
-    },
-    {
-      "human_name": "Git Graph",
-      "id": "skills_git_graph",
-      "description": "Visualize and manage complex git histories and branching strategies.",
-      "path": "skills_git_graph/SKILL.md",
-      "tags": [
-        "git",
-        "version_control",
-        "graph"
-      ],
-      "tools": [
-        "run_command"
-      ],
-      "permissions": [
-        "read",
-        "execute"
-      ],
-      "scripts": [
-        "scripts/scripts_visualize.sh"
-      ]
+      "permissions": ["read"]
     },
     {
       "human_name": "Grounding",
-      "id": "skills_grounding",
-      "description": "Techniques for grounding AI responses in verifying data sources.",
-      "path": "skills_grounding/SKILL.md",
-      "tags": [
-        "ai",
-        "grounding",
-        "verification"
-      ],
-      "tools": [
-        "search_web"
-      ],
-      "permissions": [
-        "read"
-      ],
-      "resources": [
-        "resources/resources_config.json"
-      ]
+      "id": "skills-grounding",
+      "description": "Fact verification and deep web research with provider-agnostic search and citation protocol.",
+      "path": "skills-grounding/SKILL.md",
+      "alwaysApply": false,
+      "tags": ["ai", "grounding", "verification", "research", "web"],
+      "tools": ["search_web"],
+      "permissions": ["read"]
     },
     {
       "human_name": "Performance Profiling",
-      "id": "skills_performance_profiling",
-      "description": "Identify and resolve performance bottlenecks.",
-      "path": "skills_performance_profiling/SKILL.md",
-      "tags": [
-        "performance",
-        "profiling",
-        "optimization"
-      ],
-      "tools": [
-        "run_command"
-      ],
-      "permissions": [
-        "execute",
-        "read"
-      ],
-      "scripts": [
-        "scripts/scripts_timer.py"
-      ]
-    },
-    {
-      "human_name": "Project Onboarding",
-      "id": "skills_project_onboarding",
-      "description": "Rapidly understand new codebases with automated analysis and health checks.",
-      "path": "skills_project_onboarding/SKILL.md",
-      "tags": [
-        "onboarding",
-        "project",
-        "setup",
-        "analysis"
-      ],
-      "tools": [
-        "list_dir",
-        "view_file"
-      ],
-      "permissions": [
-        "read"
-      ],
-      "scripts": [
-        "scripts/scripts_mapper.py",
-        "scripts/scripts_classifier.py",
-        "scripts/scripts_health_check.py"
-      ],
-      "resources": [
-        "resources/onboarding_template.md"
-      ]
+      "id": "skills-performance-profiling",
+      "description": "Identify and resolve performance bottlenecks via systematic profiling and optimization patterns.",
+      "path": "skills-performance-profiling/SKILL.md",
+      "alwaysApply": false,
+      "tags": ["performance", "profiling", "optimization"],
+      "tools": ["run_command"],
+      "permissions": ["execute", "read"]
     },
     {
       "human_name": "Prompt Engineering",
-      "id": "skills_prompt_engineering",
-      "description": "Design, test, and optimize LLM prompts with automated testing and evaluation.",
-      "path": "skills_prompt_engineering/SKILL.md",
-      "tags": [
-        "prompt",
-        "engineering",
-        "llm",
-        "optimization"
-      ],
+      "id": "skills-prompt-engineering",
+      "description": "MANAGER request-structuring protocol — transforms raw user input into a structured goal/scope/constraints/acceptance/refs XML packet before every ARCHITECT handoff.",
+      "path": "skills-prompt-engineering/SKILL.md",
+      "alwaysApply": false,
+      "tags": ["prompt", "structuring", "manager", "intake", "architect-handoff"],
       "tools": [],
-      "permissions": [
-        "read"
-      ],
-      "scripts": [
-        "scripts/scripts_prompt_tester.py",
-        "scripts/scripts_prompt_optimizer.py"
-      ],
-      "resources": [
-        "resources/prompt_templates.md",
-        "resources/prompt_versions.json"
-      ]
-    },
-    {
-      "human_name": "Reflection",
-      "id": "skills_reflection",
-      "description": "Self-correction and critical analysis workflows.",
-      "path": "skills_reflection/SKILL.md",
-      "tags": [
-        "reflection",
-        "self_correction",
-        "audit"
-      ],
-      "tools": [],
-      "permissions": [
-        "read"
-      ],
-      "resources": [
-        "resources/resources_scoring.md"
-      ]
-    },
-    {
-      "human_name": "Web Research",
-      "id": "skills_web_research",
-      "description": "Effective strategies for gathering information from increased web searches.",
-      "path": "skills_web_research/SKILL.md",
-      "tags": [
-        "research",
-        "web",
-        "search"
-      ],
-      "tools": [
-        "search_web"
-      ],
-      "permissions": [
-        "read"
-      ],
-      "resources": [
-        "resources/resources_hierarchy.md"
-      ]
-    },
-    {
-      "human_name": "Schema Audit",
-      "id": "skills_schema_audit",
-      "description": "Full 10-step structural integrity audit of the .agent/ directory against the canonical XML schema. Run at session start or after any .agent/ change.",
-      "path": "skills_schema_audit/SKILL.md",
-      "tags": [
-        "audit",
-        "schema",
-        "validation",
-        "integrity",
-        "protocol"
-      ],
-      "tools": [
-        "view_file",
-        "find_by_name"
-      ],
-      "permissions": [
-        "read"
-      ]
+      "permissions": ["read"]
     }
   ]
 }

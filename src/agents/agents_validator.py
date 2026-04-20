@@ -30,7 +30,17 @@ class AgentsValidator(AgentsBase):
     agent_name: str = AGENTS_VALIDATOR_AGENT_NAME
 
     async def agents_validator_verify(self, result: str, plan: str, task: str) -> dict:
-        """Compare result against plan and task. Returns {verdict, score, issues, error}."""
+        """Compare result against plan and task to produce a QA verdict.
+
+        Args:
+            result: Engineer execution output to evaluate.
+            plan: Approved plan used to derive scoring criteria.
+            task: Original user task string that defines the acceptance bar.
+
+        Returns:
+            Dict with keys: verdict (str), score (float 0–1), issues (list),
+            error (str or None).
+        """
         system = AGENTS_VALIDATOR_SYSTEM_PROMPT
         human = AGENTS_VALIDATOR_HUMAN_TEMPLATE.format(
             task=task,

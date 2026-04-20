@@ -41,7 +41,16 @@ async def api_routers_health() -> dict:
 
 @router.get("/readiness")
 async def api_routers_readiness(request: Request) -> JSONResponse:
-    """Deep check: 503 until both the agent manager and vector store are live."""
+    """Deep check: 503 until both the agent manager and vector store are live.
+
+    Args:
+        request: Starlette request providing access to app.state.manager and
+            app.state.vector_store, both set during application lifespan startup.
+
+    Returns:
+        200 JSONResponse with status=ready when all checks pass; 503 with
+        status=not_ready and a per-component checks dict until then.
+    """
 
     checks: dict[str, str] = {}
     all_ready = True

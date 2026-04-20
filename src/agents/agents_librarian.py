@@ -25,6 +25,11 @@ class AgentsLibrarian:
     agent_name: str = AGENTS_LIBRARIAN_AGENT_NAME
 
     def __init__(self, k: int = AGENTS_LIBRARIAN_DEFAULT_K) -> None:
+        """Set up the librarian with a configurable top-k retrieval limit.
+
+        Args:
+            k: Number of top documents to retrieve per query.
+        """
         self._k = k
         self._retriever = None
 
@@ -37,7 +42,14 @@ class AgentsLibrarian:
         return self._retriever
 
     async def agents_librarian_retrieve(self, query: str) -> list[Document]:
-        """Fetch top-k docs by semantic similarity."""
+        """Fetch top-k docs by semantic similarity.
+
+        Args:
+            query: User task string used as the semantic search query.
+
+        Returns:
+            List of LangChain Document objects ranked by similarity.
+        """
 
         retriever = await self._agents_librarian_get_retriever()
         docs = await retriever.rag_retriever_retrieve(query)

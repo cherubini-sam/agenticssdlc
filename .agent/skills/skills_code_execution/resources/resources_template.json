@@ -1,9 +1,0 @@
-{
-  "status": "success|error|timeout|security_violation",
-  "execution_time_ms": 0,
-  "memory_used_mb": 0.0,
-  "stdout": "",
-  "stderr": "",
-  "artifacts": [],
-  "return_value": ""
-}

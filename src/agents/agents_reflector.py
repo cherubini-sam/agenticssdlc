@@ -25,7 +25,18 @@ class AgentsReflector(AgentsBase):
     agent_name: str = AGENTS_REFLECTOR_AGENT_NAME
 
     async def agents_reflector_critique(self, plan: str, context: str, task: str) -> dict:
-        """Two-pass audit: fast assessment first, full refinement only if confidence is low."""
+        """Two-pass audit: fast assessment first, full refinement only if confidence is low.
+
+        Args:
+            plan: Architect plan to audit for correctness, completeness, and risk.
+            context: RAG context truncated to the configured token limit.
+            task: Original user task string used as the audit ground-truth.
+
+        Returns:
+            Dict with keys: confidence (float), errors (list), severity (str),
+            suggestions (list), refined_plan (str), improvements (list),
+            reuse_pattern (str), knowledge_atom (str).
+        """
 
         ctx = (context or "")[:AGENTS_REFLECTOR_CONTEXT_TRUNCATION]
         human_fast = AGENTS_REFLECTOR_HUMAN_TEMPLATE.format(
@@ -79,6 +90,14 @@ class AgentsReflector(AgentsBase):
 
     @staticmethod
     def _agents_reflector_parse(raw: str, default: dict) -> dict:
-        """Extract the first JSON object from raw LLM output. Falls back to default on failure."""
+        """Extract the first JSON object from raw LLM output.
+
+        Args:
+            raw: Raw LLM output string expected to contain at least one JSON object.
+            default: Fallback dict returned when parsing fails or no JSON is found.
+
+        Returns:
+            Parsed dict from the first JSON object in raw, or default on failure.
+        """
 
         return agents_utils_extract_json(raw, AGENTS_REFLECTOR_JSON_PATTERN) or default

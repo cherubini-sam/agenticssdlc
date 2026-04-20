@@ -44,6 +44,16 @@ class ApiMiddlewareApiKey(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        """Enforce API key or Basic Auth depending on the requested path.
+
+        Args:
+            request: Starlette request.
+            call_next: Next middleware.
+
+        Returns:
+            401 if key missing, 403 if key invalid, otherwise next middleware
+            response.
+        """
         settings = get_settings()
 
         if request.url.path in METRICS_PATHS:
@@ -93,7 +103,17 @@ class ApiMiddlewareApiKey(BaseHTTPMiddleware):
         call_next: RequestResponseEndpoint,
         settings,  # type: ignore[type-arg]
     ) -> Response:
-        """Validate HTTP Basic Auth for /metrics (used by Grafana scrape jobs)."""
+        """Validate HTTP Basic Auth for /metrics (used by Grafana scrape jobs).
+
+        Args:
+            request: Starlette request with Authorization header.
+            call_next: Next handler.
+            settings: CoreSettings with metrics_username and metrics_password.
+
+        Returns:
+            401 if Authorization header absent or malformed, 403 if credentials
+            do not match, otherwise next middleware response.
+        """
 
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Basic "):

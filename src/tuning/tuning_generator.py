@@ -100,7 +100,15 @@ class TuningGenerator:
     async def tuning_generator_generate_compliant(
         self, policy_context: str, count: int = 100
     ) -> list[SyntheticDataPoint]:
-        """Generate compliant training examples."""
+        """Generate compliant training examples.
+
+        Args:
+            policy_context: Extracted policy text used to frame the generation prompt.
+            count: Number of compliant examples to request from the synthesizer.
+
+        Returns:
+            List of SyntheticDataPoint instances with category set to compliant.
+        """
 
         prompt = TUNING_PROMPT_COMPLIANT_TEMPLATE.format(
             policy_context=policy_context,
@@ -114,7 +122,15 @@ class TuningGenerator:
     async def tuning_generator_generate_adversarial(
         self, policy_context: str, count: int = 10
     ) -> list[SyntheticDataPoint]:
-        """Generate adversarial training examples."""
+        """Generate adversarial training examples.
+
+        Args:
+            policy_context: Extracted policy text used to frame the generation prompt.
+            count: Number of adversarial examples to request from the synthesizer.
+
+        Returns:
+            List of SyntheticDataPoint instances with category set to adversarial.
+        """
 
         prompt = TUNING_PROMPT_ADVERSARIAL_TEMPLATE.format(
             policy_context=policy_context,
@@ -128,7 +144,15 @@ class TuningGenerator:
     async def tuning_generator_generate_edge_case(
         self, policy_context: str, count: int = 5
     ) -> list[SyntheticDataPoint]:
-        """Generate edge case training examples."""
+        """Generate edge case training examples.
+
+        Args:
+            policy_context: Extracted policy text used to frame the generation prompt.
+            count: Number of edge-case examples to request from the synthesizer.
+
+        Returns:
+            List of SyntheticDataPoint instances with category set to edge_case.
+        """
 
         prompt = TUNING_PROMPT_EDGE_CASE_TEMPLATE.format(
             policy_context=policy_context,
@@ -184,7 +208,14 @@ class TuningGenerator:
         return examples
 
     def tuning_generator_format_jsonl(self, examples: list[SyntheticDataPoint]) -> str:
-        """Format examples into Vertex AI SFT JSONL schema."""
+        """Format examples into Vertex AI SFT JSONL schema.
+
+        Args:
+            examples: List of SyntheticDataPoint instances to serialize.
+
+        Returns:
+            Newline-delimited JSON string, one Vertex AI SFT record per line.
+        """
 
         jsonl_lines = []
         system_instruction = {
@@ -208,7 +239,19 @@ class TuningGenerator:
         return "\n".join(jsonl_lines)
 
     def tuning_generator_upload_gcs(self, jsonl_content: str, is_training: bool = True) -> str:
-        """Upload JSONL dataset to GCS bucket."""
+        """Upload JSONL dataset to GCS bucket.
+
+        Args:
+            jsonl_content: Newline-delimited JSON string produced by
+                tuning_generator_format_jsonl.
+            is_training: When True, uploads as train.jsonl; otherwise val.jsonl.
+
+        Returns:
+            gs:// URI of the uploaded blob.
+
+        Raises:
+            Exception: Re-raises any GCS upload error after logging.
+        """
 
         filename = "train.jsonl" if is_training else "val.jsonl"
         bucket = self.gcs_client.bucket(self.gcs_bucket)
@@ -224,7 +267,11 @@ class TuningGenerator:
             raise
 
     async def tuning_generator_generate_datasets(self) -> tuple[str, str]:
-        """Orchestrate complete synthetic data pipeline."""
+        """Orchestrate complete synthetic data pipeline.
+
+        Returns:
+            Tuple of (train_gcs_uri, validation_gcs_uri) for the uploaded JSONL files.
+        """
 
         self.logger.info(TUNING_LOG_GENERATOR_START)
 

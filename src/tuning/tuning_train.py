@@ -42,7 +42,19 @@ class TuningTrain:
         self.logger = logging.getLogger(__name__)
 
     async def tuning_train_lora_adapter(self, train_uri: str, validation_uri: str) -> dict:
-        """Submit LoRA fine-tuning job to Vertex AI."""
+        """Submit LoRA fine-tuning job to Vertex AI.
+
+        Args:
+            train_uri: GCS URI of the training JSONL dataset.
+            validation_uri: GCS URI of the validation JSONL dataset.
+
+        Returns:
+            Dict with keys: status, job_resource_name, tuned_model_endpoint,
+            training_loss, validation_loss.
+
+        Raises:
+            Exception: Re-raises any error from the Vertex AI SFT submission.
+        """
 
         self.logger.info(
             TUNING_LOG_TRAIN_SUBMIT.format(
@@ -115,7 +127,17 @@ class TuningTrain:
             raise RuntimeError(TUNING_LOG_TRAIN_UNEXPECTED.format(state=job.state))
 
     async def tuning_train_deploy_endpoint(self, tuned_model_name: str) -> str:
-        """Deploy endpoint for fine-tuned model."""
+        """Deploy endpoint for fine-tuned model.
+
+        Args:
+            tuned_model_name: Full Vertex AI resource name of the tuned model.
+
+        Returns:
+            Endpoint ID extracted from the resource name (last path segment).
+
+        Raises:
+            Exception: Re-raises any error encountered during endpoint derivation.
+        """
 
         self.logger.info(TUNING_LOG_TRAIN_DEPLOY.format(model_name=tuned_model_name))
 
@@ -128,7 +150,18 @@ class TuningTrain:
             raise
 
     async def tuning_train_orchestrate_pipeline(self, train_uri: str, validation_uri: str) -> str:
-        """Orchestrate complete training and deployment."""
+        """Orchestrate complete training and deployment.
+
+        Args:
+            train_uri: GCS URI of the training JSONL dataset.
+            validation_uri: GCS URI of the validation JSONL dataset.
+
+        Returns:
+            Endpoint ID of the deployed fine-tuned model.
+
+        Raises:
+            RuntimeError: If the training job does not succeed.
+        """
 
         self.logger.info(TUNING_LOG_TRAIN_PIPELINE_START)
 

@@ -47,7 +47,15 @@ _supabase_client: Any | None = None
 
 
 def _analytics_supabase_get_client(url: str, key: str) -> Any:
-    """Lazy-init the module-level Supabase client singleton."""
+    """Lazy-init the module-level Supabase client singleton.
+
+    Args:
+        url: Supabase project URL.
+        key: Supabase anon or service-role key.
+
+    Returns:
+        Singleton Supabase client.
+    """
 
     global _supabase_client
     if _supabase_client is None:
@@ -137,7 +145,18 @@ class AnalyticsSupabaseIngest:
         task_content: str = "",
         error: str | None = None,
     ) -> None:
-        """Insert one row into agent_audit_log. Non-blocking, errors are swallowed."""
+        """Insert one row into agent_audit_log. Non-blocking, errors are swallowed.
+
+        Args:
+            session_id: Workflow run identifier.
+            agent_name: Name of the agent that produced this row.
+            phase: Workflow phase number; clamped to 1–6 before insert.
+            latency_ms: Elapsed time in milliseconds.
+            confidence: Score (0–1); clamped before insert.
+            status: One of success/error/retry; invalid values coerced to error.
+            task_content: Raw task string (truncated to 1024 characters).
+            error: Error message string or None.
+        """
 
         if not self._enabled:
             return
@@ -174,8 +193,17 @@ class AnalyticsSupabaseIngest:
         latency_ms: float | None = None,
         snapshot_data: dict[str, Any] | None = None,
     ) -> None:
-        """Upsert into workflow_snapshots (ON CONFLICT session_id).
-        Non-blocking, errors swallowed.
+        """Upsert into workflow_snapshots (ON CONFLICT session_id). Non-blocking, errors swallowed.
+
+        Args:
+            session_id: Workflow run identifier; unique key for the upsert.
+            phase_reached: Highest phase number completed in this session.
+            retry_count: Number of retry cycles executed.
+            final_status: One of completed/failed/retrying; invalid values coerced to failed.
+            confidence: Optional final confidence score (0–1); clamped before insert.
+            latency_ms: Optional total latency in milliseconds.
+            snapshot_data: Optional dict with auxiliary fields such as
+                phases_completed, agent_trace, and error_code.
         """
 
         if not self._enabled:

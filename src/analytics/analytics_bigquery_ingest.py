@@ -35,7 +35,14 @@ _bq_client: Any | None = None
 
 
 def _analytics_bigquery_get_bq_client(project_id: str) -> Any:
-    """Lazy-init the module-level BigQuery client singleton."""
+    """Lazy-init the module-level BigQuery client singleton.
+
+    Args:
+        project_id: GCP project ID for the BigQuery client.
+
+    Returns:
+        Singleton bigquery.Client instance.
+    """
 
     global _bq_client
     if _bq_client is None:
@@ -85,7 +92,21 @@ class AnalyticsBigqueryIngest:
         task_content: str = "",
         error: str | None = None,
     ) -> dict[str, Any]:
-        """Assemble the row dict for a streaming insert."""
+        """Assemble the row dict for a streaming insert.
+
+        Args:
+            session_id: Workflow run identifier.
+            agent_name: Name of the agent that produced this row.
+            phase: Workflow phase number (1–6).
+            latency_ms: Elapsed time in milliseconds.
+            confidence: Normalized confidence score (0–1).
+            status: One of success/error/retry.
+            task_content: Raw task string (truncated to max allowed length).
+            error: Error message string or None.
+
+        Returns:
+            Dict formatted for BigQuery streaming insert with all required column keys.
+        """
 
         return {
             ANALYTICS_KEY_SESSION_ID: session_id,
@@ -110,7 +131,18 @@ class AnalyticsBigqueryIngest:
         task_content: str = "",
         error: str | None = None,
     ) -> None:
-        """Non-blocking insert: errors are logged and never raised."""
+        """Non-blocking insert: errors are logged and never raised.
+
+        Args:
+            session_id: Workflow run identifier.
+            agent_name: Name of the agent that produced this row.
+            phase: Workflow phase number (1–6).
+            latency_ms: Elapsed time in milliseconds.
+            confidence: Normalized confidence score (0–1).
+            status: One of success/error/retry.
+            task_content: Raw task string (truncated to max allowed length).
+            error: Error message string or None.
+        """
 
         row = self._analytics_bigquery_build_row(
             session_id=session_id,
@@ -132,7 +164,11 @@ class AnalyticsBigqueryIngest:
             logger.warning("BigQuery insert failed (non-fatal): %s", exc)
 
     def _analytics_bigquery_insert_row(self, row: dict[str, Any]) -> None:
-        """Synchronous streaming insert into BigQuery."""
+        """Synchronous streaming insert into BigQuery.
+
+        Args:
+            row: Dict formatted by _analytics_bigquery_build_row.
+        """
 
         try:
             errors = self._client.insert_rows_json(
