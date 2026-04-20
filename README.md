@@ -34,7 +34,34 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
 
 ---
 
-## Overview
+## Table of Contents
+
+- [Agentics SDLC](#agentics-sdlc)
+  - [Table of Contents](#table-of-contents)
+  - [📖 Overview](#-overview)
+    - [Highlights](#highlights)
+  - [🏗️ Architecture Overview](#️-architecture-overview)
+    - [6-Phase Workflow Sequence](#6-phase-workflow-sequence)
+  - [🤖 Agent Roster](#-agent-roster)
+  - [🚀 Quickstart](#-quickstart)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Minimum `.env` Configuration](#minimum-env-configuration)
+    - [Basic Usage](#basic-usage)
+  - [🛠️ Technology Stack](#️-technology-stack)
+  - [🔍 RAG Pipeline](#-rag-pipeline)
+  - [📊 Observability Architecture](#-observability-architecture)
+  - [📁 Directory Structure](#-directory-structure)
+  - [✨ Showcase](#-showcase)
+    - [Video Demo](#video-demo)
+    - [Screenshots](#screenshots)
+  - [📚 Advanced Documentation](#-advanced-documentation)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
+
+---
+
+## 📖 Overview
 
 **Agentics SDLC** is a production-grade, serverless **Multi-Agent System (MAS)** built on **LangGraph**, where each node is a specialist AI agent. You submit a high-level intent — "Build this feature" — and the system coordinates seven specialized agents through a strict 6-phase pipeline to produce production-quality output. Every phase is protocol-enforced: the PROTOCOL agent validates every session at boot, and the REFLECTOR applies a 4-persona confidence audit before any code is executed.
 
@@ -52,7 +79,7 @@ Two independent interfaces run on top of the same LangGraph graph: a **FastAPI**
 
 ---
 
-## Architecture Overview
+## 🏗️ Architecture Overview
 
 ```mermaid
 flowchart TD
@@ -143,21 +170,21 @@ sequenceDiagram
 
 ---
 
-## Agent Roster
+## 🤖 Agent Roster
 
-| Agent | Phase | Role |
-|:---|:---|:---|
-| **MANAGER** | Coordinator (all phases) | Central router and orchestrator (active). Builds the StateGraph and dispatches to all agents. |
-| **PROTOCOL** | Phase 1 — boot gate | Boot integrity validator (active). Checks every request before Phase 2; violations terminate immediately. |
-| **LIBRARIAN** | Phase 2 — context | Async top-k RAG retrieval. Caches context in state to skip re-retrieval on retry. |
-| **ARCHITECT** | Phase 3 — plan | Drafts execution plan from task + context. On retry, consumes REFLECTOR's refined plan. |
-| **REFLECTOR** | Phase 4 — critique | 4-persona confidence audit (Judge, Critic, Refiner, Curator). Emits score and refined plan; gates execution. |
-| **ENGINEER** | Phase 5 — execution | Executes the approved plan. Receives force-execute after max retries. |
-| **VALIDATOR** | Phase 6 — QA | Verifies output against task and plan. Produces normalized score; gates retry or acceptance. |
+| Agent         | Phase                    | Role                                                                                                         |
+| :------------ | :----------------------- | :----------------------------------------------------------------------------------------------------------- |
+| **MANAGER**   | Coordinator (all phases) | Central router and orchestrator (active). Builds the StateGraph and dispatches to all agents.                |
+| **PROTOCOL**  | Phase 1 — boot gate      | Boot integrity validator (active). Checks every request before Phase 2; violations terminate immediately.    |
+| **LIBRARIAN** | Phase 2 — context        | Async top-k RAG retrieval. Caches context in state to skip re-retrieval on retry.                            |
+| **ARCHITECT** | Phase 3 — plan           | Drafts execution plan from task + context. On retry, consumes REFLECTOR's refined plan.                      |
+| **REFLECTOR** | Phase 4 — critique       | 4-persona confidence audit (Judge, Critic, Refiner, Curator). Emits score and refined plan; gates execution. |
+| **ENGINEER**  | Phase 5 — execution      | Executes the approved plan. Receives force-execute after max retries.                                        |
+| **VALIDATOR** | Phase 6 — QA             | Verifies output against task and plan. Produces normalized score; gates retry or acceptance.                 |
 
 ---
 
-## Quickstart
+## 🚀 Quickstart
 
 ### Prerequisites
 
@@ -212,7 +239,7 @@ poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 
 ---
 
-## Technology Stack
+## 🛠️ Technology Stack
 
 | Category                    | Technology                        | Purpose                                                                             |
 | :-------------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
@@ -244,7 +271,7 @@ poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 
 ---
 
-## RAG Pipeline
+## 🔍 RAG Pipeline
 
 ```mermaid
 flowchart LR
@@ -269,7 +296,7 @@ flowchart LR
 
 ---
 
-## Observability Architecture
+## 📊 Observability Architecture
 
 ```mermaid
 flowchart TD
@@ -292,7 +319,7 @@ flowchart TD
 
 ---
 
-## Directory Structure
+## 📁 Directory Structure
 
 ```
 agenticssdlc/
@@ -351,7 +378,7 @@ agenticssdlc/
 
 ---
 
-## Showcase
+## ✨ Showcase
 
 ### Video Demo
 
@@ -400,7 +427,7 @@ https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
 
 ---
 
-## Advanced Documentation
+## 📚 Advanced Documentation
 
 For deployment commands, infrastructure reference, and the LoRA fine-tuning pipeline, see [CHEATSHEET.md](CHEATSHEET.md).
 
@@ -412,13 +439,13 @@ poetry run pytest tests/integration/
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome. Please ensure all tests pass and pre-commit hooks are clean before submitting a pull request. The CI pipeline runs Black, isort, Flake8, and pytest with 70% coverage enforcement.
 
 ---
 
-## License
+## 📄 License
 
 See [LICENSE](LICENSE) for details.
 
