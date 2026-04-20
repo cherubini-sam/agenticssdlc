@@ -22,7 +22,22 @@ from src.core.core_utils import (
 
 
 class CoreSettings(BaseSettings):
-    """Pydantic settings model loaded from environment variables."""
+    """Fail-fast Pydantic BaseSettings model loaded from environment variables and .env file.
+
+    Field groups:
+        GCP: gcp_project_id, gcp_region, gcs_bucket.
+        Gemini: gemini_model, tuned_protocol_endpoint_id.
+        Supabase: supabase_url, supabase_key, supabase_db_url.
+        Qdrant: qdrant_url, qdrant_api_key.
+        ChromaDB: chroma_path (local fallback when qdrant_url is empty).
+        BigQuery: bigquery_dataset.
+        Application: log_level, port.
+        Auth: agentics_sdlc_api_key (empty = auth disabled).
+        Grafana: metrics_username, metrics_password, grafana_prometheus_url,
+            grafana_instance_id, grafana_api_key.
+        CORS: allowed_origins.
+        Rate Limiting: rate_limit_rpm (0 = no limit).
+    """
 
     model_config = SettingsConfigDict(
         env_file=CORE_CONFIG_ENV_FILE, env_file_encoding=CORE_CONFIG_ENV_ENCODING, extra="ignore"
@@ -81,7 +96,14 @@ class CoreSettings(BaseSettings):
 
 
 def core_config_validate_settings(s: CoreSettings) -> None:
-    """Blow up early if GCP project ID is missing."""
+    """Blow up early if GCP project ID is missing.
+
+    Args:
+        s: CoreSettings instance to validate.
+
+    Raises:
+        ValueError: If gcp_project_id is empty.
+    """
 
     if not s.gcp_project_id:
         raise ValueError(CORE_CONFIG_MISSING_PROJECT_ID_ERROR)
@@ -89,6 +111,10 @@ def core_config_validate_settings(s: CoreSettings) -> None:
 
 @lru_cache(maxsize=1)
 def core_config_get_settings() -> CoreSettings:
-    """Singleton settings — created once, cached for the process lifetime."""
+    """Singleton settings — created once, cached for the process lifetime.
+
+    Returns:
+        Singleton CoreSettings instance, created once and cached for process lifetime.
+    """
 
     return CoreSettings()

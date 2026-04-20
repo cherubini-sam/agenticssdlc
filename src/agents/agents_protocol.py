@@ -48,7 +48,12 @@ class AgentsProtocol:
     agent_name: str = AGENTS_PROTOCOL_AGENT_NAME
 
     def __init__(self):
-        """Initialize protocol agent with optional resilient gatekeeper chain."""
+        """Initialize protocol agent with optional resilient gatekeeper chain.
+
+        The gatekeeper LCEL chain is built only when TUNED_PROTOCOL_ENDPOINT_ID is
+        configured in CoreSettings. Without an endpoint the instance falls back to
+        deterministic heuristics for every validation request.
+        """
 
         self.logger = logging.getLogger(self.agent_name)
         settings = core_config_get_settings()
@@ -58,7 +63,15 @@ class AgentsProtocol:
         )
 
     def _agents_protocol_build_gatekeeper(self, settings) -> RunnableLambda:
-        """Build resilient gatekeeper chain if endpoint configured."""
+        """Build resilient gatekeeper chain if endpoint configured.
+
+        Args:
+            settings: CoreSettings instance carrying GCP project, region, and model config.
+
+        Returns:
+            Resilient LCEL RunnableLambda chain with a structured-output LLM primary and
+            two fallbacks: legacy heuristic then fail-closed.
+        """
 
         protocol_llm = ChatVertexAI(
             model_name=settings.gemini_model,
@@ -85,7 +98,16 @@ class AgentsProtocol:
         return resilient
 
     async def agents_protocol_validate(self, task_id: str, content: str) -> dict:
-        """Structural guard + optional LLM semantic validation via resilient LCEL chain."""
+        """Run structural guard then optional LLM semantic validation via the LCEL chain.
+
+        Args:
+            task_id: Unique identifier for the current workflow run.
+            content: Raw user-submitted task string to validate.
+
+        Returns:
+            Dict with keys: protocol_status (str), violations (list[str]),
+            boot_agent (str), boot_phase (int).
+        """
 
         telemetry = {
             "active_agent": self.agent_name,
@@ -125,7 +147,14 @@ class AgentsProtocol:
         )
 
     async def _agents_protocol_invoke_gatekeeper(self, content: str) -> ProtocolDecision:
-        """Invoke resilient LCEL chain asynchronously. Fallbacks built into chain."""
+        """Invoke the resilient LCEL chain asynchronously. Fallbacks are built into the chain.
+
+        Args:
+            content: Task content to validate semantically via the LLM gatekeeper.
+
+        Returns:
+            ProtocolDecision with status and violations from the LLM or a fallback.
+        """
 
         try:
             return await self._gatekeeper.ainvoke({"content": content})
@@ -138,7 +167,14 @@ class AgentsProtocol:
             return self._agents_protocol_legacy_heuristic({"content": content})
 
     def _agents_protocol_legacy_heuristic(self, input_dict: dict) -> ProtocolDecision:
-        """Deterministic rule-based heuristic, wrapped as LCEL-compatible function."""
+        """Deterministic rule-based heuristic, wrapped as an LCEL-compatible function.
+
+        Args:
+            input_dict: Dict with key "content" (str) — the task content to check.
+
+        Returns:
+            ProtocolDecision based on structural integrity checks only.
+        """
 
         content = input_dict.get("content", "")
         violations = self._agents_protocol_check_integrity(task_id="N/A", content=content)
@@ -155,7 +191,14 @@ class AgentsProtocol:
         )
 
     def _agents_protocol_fail_closed(self, input_dict: dict) -> ProtocolDecision:
-        """Ultimate safety: always return ERROR on catastrophic failure. Never fail-open."""
+        """Ultimate safety net: always return ERROR on catastrophic failure. Never fail-open.
+
+        Args:
+            input_dict: Unused dict; kept for LCEL chain signature compatibility.
+
+        Returns:
+            ProtocolDecision with ERROR status and a fail-closed violation message.
+        """
 
         self.logger.error(AGENTS_PROTOCOL_LOG_FAIL_CLOSED)
         return ProtocolDecision(
@@ -164,7 +207,15 @@ class AgentsProtocol:
         )
 
     def _agents_protocol_map_decision(self, decision: ProtocolDecision) -> dict:
-        """Map ProtocolDecision to AgentsState format. Record observability metrics."""
+        """Map a ProtocolDecision to AgentsState format and record observability metrics.
+
+        Args:
+            decision: ProtocolDecision returned by the LLM gatekeeper chain.
+
+        Returns:
+            Dict in AgentsState format with keys: protocol_status, violations,
+            boot_agent, boot_phase.
+        """
 
         is_error = decision.protocol_status == AGENTS_PROTOCOL_DECISION_ERROR
         state_status = AGENTS_PROTOCOL_STATUS_ERROR if is_error else AGENTS_PROTOCOL_STATUS_GREEN
@@ -186,7 +237,15 @@ class AgentsProtocol:
         }
 
     def _agents_protocol_map_legacy_result(self, decision: ProtocolDecision) -> dict:
-        """Map legacy heuristic result to AgentsState format. Record observability."""
+        """Map a legacy heuristic result to AgentsState format and record observability.
+
+        Args:
+            decision: ProtocolDecision produced by the deterministic heuristic path.
+
+        Returns:
+            Dict in AgentsState format with keys: protocol_status, violations,
+            boot_agent, boot_phase.
+        """
 
         is_error = decision.protocol_status == AGENTS_PROTOCOL_DECISION_ERROR
         state_status = AGENTS_PROTOCOL_STATUS_ERROR if is_error else AGENTS_PROTOCOL_STATUS_GREEN
@@ -208,7 +267,16 @@ class AgentsProtocol:
         }
 
     def _agents_protocol_check_integrity(self, task_id: str, content: str) -> list[str]:
-        """Structural guard: check for empty inputs and length bounds. Returns violation list."""
+        """Structural guard: check for empty inputs and length bounds.
+
+        Args:
+            task_id: Workflow run ID; checked for empty or whitespace-only value.
+            content: User task string; checked for empty value and maximum length.
+
+        Returns:
+            List of violation strings. An empty list means the request passed all
+            structural checks.
+        """
 
         violations: list[str] = []
 

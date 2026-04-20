@@ -82,7 +82,18 @@ def record_metrics(
     latency_s: float,
     confidence: float | None = None,
 ) -> None:
-    """Bump counters/histograms locally and optionally push to Grafana Cloud."""
+    """Bump counters/histograms locally and optionally push to Grafana Cloud.
+
+    Also fires a remote-write push to Grafana Cloud when the URL is configured
+    in settings.
+
+    Args:
+        agent: Agent name string for label.
+        phase: Workflow phase string.
+        status: Call outcome (success/error/retry).
+        latency_s: Elapsed time in seconds.
+        confidence: Confidence score. None skips the gauge update.
+    """
 
     AGENT_CALLS.labels(agent_name=agent, phase=phase, status=status).inc()
     AGENT_LATENCY.labels(agent_name=agent, phase=phase).observe(latency_s)
@@ -104,7 +115,12 @@ def record_metrics(
 
 
 def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
-    """Increment protocol decision counter and optionally push to Grafana."""
+    """Increment protocol decision counter and optionally push to Grafana.
+
+    Args:
+        status: Protocol decision status (GREEN/ERROR).
+        gatekeeper_mode: Evaluation mode used (llm or heuristic).
+    """
 
     PROTOCOL_DECISIONS.labels(status=status, gatekeeper_mode=gatekeeper_mode).inc()
     settings = get_settings()
@@ -121,7 +137,11 @@ def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
 
 
 def record_active_workflows(value: float) -> None:
-    """Push the in-flight workflow gauge to both local registry and Grafana."""
+    """Push the in-flight workflow gauge to both local registry and Grafana.
+
+    Args:
+        value: Current count of in-flight workflows to set on the gauge.
+    """
 
     ACTIVE_WORKFLOWS.set(value)
     settings = get_settings()
@@ -139,6 +159,15 @@ class ApiMiddlewareObservability(BaseHTTPMiddleware):
     """Emits a GCP-structured httpRequest log line for every non-infra request."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        """Emit a GCP-structured log line and attach a request ID to the response.
+
+        Args:
+            request: Starlette request.
+            call_next: Next handler.
+
+        Returns:
+            Response with X-Request-ID header added.
+        """
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 

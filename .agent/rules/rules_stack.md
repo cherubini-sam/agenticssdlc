@@ -16,21 +16,17 @@
 
 <scope>Core token budget and cost thresholds governing all agent inference operations across supported model families.</scope>
 
-#### LLM Runtime — Supported Models
+#### LLM Runtime — Active Shard
 
-Model is detected per session via `CLAUDE.md` model detection block and loaded as an immutable shard.
+Model is detected per session from: (1) `$AGENT_ACTIVE_MODEL` env var (takes precedence); (2) active bootloader model detection block. Loaded as an immutable shard.
 
 | Shard | Model ID | Context In | Max Out | Reasoning |
 | :--- | :--- | :--- | :--- | :--- |
-| `shards_claude_haiku_4` | `claude-haiku-4-5` | 200K | 64K | Budget-controlled (opt-in) |
-| `shards_claude_sonnet_4` | `claude-sonnet-4-6` | 200K | 128K | Adaptive effort (low/medium/high/max) |
-| `shards_claude_opus_4` | `claude-opus-4-6` | 200K (1M beta) | 128K | Adaptive effort — default: high |
-| `shards_gemini_3_flash` | `gemini-3-flash` | 200K | 64K | Levels: minimal/low/medium/high |
-| `shards_gemini_3_pro` | `gemini-3.1-pro` | 1M | 64K | Levels: low/medium/high — default: high |
-| `shards_gemini_ultra` | `gemini-3-deep-think` | 1M | Unlimited | Deep Reasoning — always max, not configurable |
-| `shards_generic_llm` | Any unrecognized model | Assume 128K | Assume 4K–8K | Prompt-based CoT only |
+| `shards_generic_llm` | Any model | Assume 128K | Assume 4K–8K | Prompt-based CoT only |
 
-Cache Min: 1024 tokens (Anthropic) / 4096 tokens (Google). Consult active shard for pricing.
+Shard catalog is intentionally minimal — one universal fallback. Add named shards by creating `shards_<provider>_<tier>.md` and registering in `config/settings.json` `shard_catalog`.
+
+Cache min: 1024 tokens (short-context providers) / 4096 tokens (long-context providers). Consult active shard for exact pricing.
 
 #### Cost Controls
 
@@ -42,6 +38,24 @@ Cache Min: 1024 tokens (Anthropic) / 4096 tokens (Google). Consult active shard 
 Bypass: manual user override for large-scale codebase migrations.
 
 </axiom_core>
+<authority_matrix>
+
+### 4-TIER MODEL ROUTING STRATEGY
+
+<scope>Authoritative routing rules mapping task complexity to model tier. Deviations require user approval.</scope>
+
+| Tier | Target | Use Case | Trigger Classification |
+| :--- | :--- | :--- | :--- |
+| Tier 1 | Highest-capability model in active shard family | Architecture, security audits, complex orchestration, frontier reasoning | `system_design`, `security_audit`, `complex_reasoning` |
+| Tier 2 | Dynamic — orchestrator selects based on load | Complex tasks where depth is uncertain; defaults to balanced tier | `inherit` — MANAGER sets dynamically |
+| Tier 3 | Balanced model in active shard family | Standard implementation, debugging, unit tests, bulk engineering | `implementation`, `refactor`, `bug_fix`, `test_generation` |
+| Tier 4 | Fastest / cheapest model in active shard family | Read-only exploration, documentation, codebase search, analysis | `exploration`, `documentation`, `analysis` |
+
+**Routing rule:** Expensive models plan and orchestrate; efficient models execute in parallel.
+
+LOG WARNING and notify user on any stack deviation. Bypass: explicit user override for environment-specific configurations.
+
+</authority_matrix>
 <compliance_testing>
 
 ### STACK AUDIT

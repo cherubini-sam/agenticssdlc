@@ -39,6 +39,12 @@ class ApiMiddlewareRateLimit(BaseHTTPMiddleware):
     """
 
     def __init__(self, app, rpm: int = API_MIDDLEWARE_RATELIMIT_DEFAULT_RPM) -> None:
+        """
+        Args:
+            app: ASGI application.
+            rpm: Maximum requests per minute per client. 0 disables rate
+                limiting entirely.
+        """
         super().__init__(app)
         self._rpm: int = rpm
         self._window: float = API_MIDDLEWARE_RATELIMIT_WINDOW
@@ -46,7 +52,15 @@ class ApiMiddlewareRateLimit(BaseHTTPMiddleware):
         self._lock = threading.Lock()
 
     def _api_middleware_ratelimit_client_id(self, request: Request) -> str:
-        """Use the API key when present so per-key limits work; otherwise fall back to IP."""
+        """Use the API key when present so per-key limits work; otherwise fall back to IP.
+
+        Args:
+            request: Starlette request.
+
+        Returns:
+            API key string when present in headers, client host IP as fallback,
+            or "unknown" if neither is available.
+        """
 
         key = request.headers.get(API_HEADER_API_KEY, "")
         if key:
@@ -56,7 +70,15 @@ class ApiMiddlewareRateLimit(BaseHTTPMiddleware):
         return API_RATELIMIT_CLIENT_UNKNOWN
 
     def _api_middleware_ratelimit_check(self, client_id: str) -> tuple[bool, int, int]:
-        """Return (allowed, remaining, retry_after_seconds)."""
+        """Evaluate whether the client is within its rate-limit budget.
+
+        Args:
+            client_id: Identifier string for the requesting client.
+
+        Returns:
+            Tuple of (allowed, remaining, retry_after_seconds); allowed is False
+            when the bucket is full.
+        """
 
         now = time.monotonic()
 

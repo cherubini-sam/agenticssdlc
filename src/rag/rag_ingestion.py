@@ -46,7 +46,14 @@ _SPLITTER = RecursiveCharacterTextSplitter(
 
 
 def rag_ingestion_load_knowledge_base(base_path: str = ".agent/") -> list[Document]:
-    """Walk base_path and load every .md file as a Document with category metadata."""
+    """Walk base_path and load every .md file as a Document with category metadata.
+
+    Args:
+        base_path: Root directory to walk for .md files.
+
+    Returns:
+        List of Documents with category, filename, and source metadata.
+    """
 
     docs: list[Document] = []
     base = Path(base_path)
@@ -89,7 +96,15 @@ def rag_ingestion_load_knowledge_base(base_path: str = ".agent/") -> list[Docume
 
 
 def rag_ingestion_chunk_documents(docs: list[Document]) -> list[Document]:
-    """Split into overlapping chunks. Metadata carries over from the parent doc."""
+    """Split into overlapping chunks. Metadata carries over from the parent doc.
+
+    Args:
+        docs: List of full-document Documents to split.
+
+    Returns:
+        List of overlapping chunk Documents; each chunk gets a SHA-256
+        chunk_hash in metadata.
+    """
 
     chunks = _SPLITTER.split_documents(docs)
 
@@ -101,7 +116,14 @@ def rag_ingestion_chunk_documents(docs: list[Document]) -> list[Document]:
 
 
 def rag_ingestion_deduplicate(chunks: list[Document]) -> list[Document]:
-    """Remove duplicate chunks within a batch using their content hash."""
+    """Remove duplicate chunks within a batch using their content hash.
+
+    Args:
+        chunks: List of chunk Documents potentially containing duplicates.
+
+    Returns:
+        Deduplicated list preserving first occurrence of each chunk hash.
+    """
 
     seen: set[str] = set()
     unique: list[Document] = []
@@ -117,7 +139,15 @@ def rag_ingestion_deduplicate(chunks: list[Document]) -> list[Document]:
 
 
 def _load_manifest(path: str = RAG_INGEST_MANIFEST_PATH) -> set[str]:
-    """Return the set of chunk hashes already persisted in the vector store."""
+    """Return the set of chunk hashes already persisted in the vector store.
+
+    Args:
+        path: Path to the JSON manifest file.
+
+    Returns:
+        Set of chunk hash strings already indexed; empty set if manifest does
+        not exist.
+    """
 
     manifest_file = Path(path)
     if not manifest_file.exists():
@@ -131,7 +161,12 @@ def _load_manifest(path: str = RAG_INGEST_MANIFEST_PATH) -> set[str]:
 
 
 def _save_manifest(seen: set[str], path: str = RAG_INGEST_MANIFEST_PATH) -> None:
-    """Persist the full set of ingested chunk hashes to the manifest file."""
+    """Persist the full set of ingested chunk hashes to the manifest file.
+
+    Args:
+        seen: Set of all chunk hashes to persist.
+        path: Destination manifest file path.
+    """
 
     manifest_file = Path(path)
     manifest_file.parent.mkdir(parents=True, exist_ok=True)
@@ -142,6 +177,9 @@ def rag_ingestion_reset_manifest(path: str = RAG_INGEST_MANIFEST_PATH) -> None:
     """Delete the ingest manifest so the next run re-ingests everything.
 
     Call this after a vector store reset to keep the manifest in sync.
+
+    Args:
+        path: Path to the manifest file to delete.
     """
     manifest_file = Path(path)
     if manifest_file.exists():
@@ -150,7 +188,15 @@ def rag_ingestion_reset_manifest(path: str = RAG_INGEST_MANIFEST_PATH) -> None:
 
 
 async def rag_ingestion_ingest(vector_store: Any, base_path: str = ".agent/") -> int:
-    """Run the full pipeline: load -> chunk -> deduplicate -> filter new -> embed+store."""
+    """Run the full pipeline: load -> chunk -> deduplicate -> filter new -> embed+store.
+
+    Args:
+        vector_store: RagVectorStore instance to write chunks into.
+        base_path: Root directory to ingest from.
+
+    Returns:
+        Number of new chunks indexed (0 if no new content found).
+    """
 
     docs = rag_ingestion_load_knowledge_base(base_path)
     loop = asyncio.get_running_loop()

@@ -23,7 +23,14 @@ class AgentsArchitect(AgentsBase):
         self, task: str, context: str, verbosity: str = AGENTS_MANAGER_VERBOSITY_DEFAULT
     ) -> str:
         """Draft a markdown plan grounded in RAG context.
-        Verbosity tweaks the system prompt suffix.
+
+        Args:
+            task: Raw task description from the user.
+            context: RAG-retrieved context injected into the prompt.
+            verbosity: Controls system prompt verbosity suffix (concise/standard/detailed).
+
+        Returns:
+            Markdown implementation plan as a plain string.
         """
 
         system = AGENTS_ARCHITECT_SYSTEM_PROMPT + AGENTS_ARCHITECT_VERBOSITY_SUFFIX.get(

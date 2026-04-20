@@ -1,4 +1,7 @@
 {
+  "agent.active_model": "${AGENT_ACTIVE_MODEL}",
+  "agent.active_provider": "${AGENT_ACTIVE_PROVIDER}",
+  "agent.active_shard": "${AGENT_ACTIVE_SHARD}",
   "agent.mode": "orchestrator",
   "agent.policies": {
     "artifact_review": "request_review",
@@ -23,20 +26,17 @@
   "bootloader": {
     "detection": {
       "enabled": true,
+      "source": "env_var_first",
+      "env_var": "AGENT_ACTIVE_MODEL",
       "fallback_behavior": "halt_and_ask",
       "model_patterns": {
-        "claude": ["claude-sonnet", "claude-opus", "claude-haiku"],
-        "gemini": ["gemini-flash", "gemini-pro", "gemini-ultra"],
+        "anthropic": ["claude-"],
+        "google": ["gemini-"],
+        "openai": ["gpt-", "o1", "o3"],
+        "meta": ["llama-"],
         "generic": ["*"]
       },
-      "model_shards": {
-        "claude-sonnet-4": "shards_claude_sonnet_4",
-        "claude-opus-4": "shards_claude_opus_4",
-        "claude-haiku-4": "shards_claude_haiku_4",
-        "gemini-3-flash": "shards_gemini_3_flash",
-        "gemini-3-pro": "shards_gemini_3_pro",
-        "gemini-ultra": "shards_gemini_ultra",
-        "gemini-deep-think": "shards_gemini_ultra",
+      "shard_catalog": {
         "generic": "shards_generic_llm"
       }
     }
@@ -61,11 +61,11 @@
     "format": "TIMESTAMP | LAW_ID | VIOLATION_TYPE | RECOVERY_ACTION",
     "mode": "strict",
     "tracked_laws": [
-      { "id": "LAW_1", "name": "Transparency Lock", "severity": "CRITICAL" },
-      { "id": "LAW_30", "name": "Phase 1 Gate", "severity": "CRITICAL" },
-      { "id": "LAW_33", "name": "Phase Boundary", "severity": "HIGH" },
+      { "id": "LAW_1",  "name": "Transparency Lock",   "severity": "CRITICAL" },
+      { "id": "LAW_30", "name": "Phase 1 Gate",         "severity": "CRITICAL" },
+      { "id": "LAW_33", "name": "Phase Boundary",       "severity": "HIGH" },
       { "id": "LAW_31", "name": "Tool Invocation Gate", "severity": "CRITICAL" },
-      { "id": "LAW_32", "name": "Serial Execution", "severity": "MEDIUM" }
+      { "id": "LAW_32", "name": "Serial Execution",     "severity": "MEDIUM" }
     ]
   }
 }

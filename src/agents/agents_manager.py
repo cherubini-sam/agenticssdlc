@@ -114,7 +114,19 @@ CONFIDENCE_THRESHOLD: float = AGENTS_MANAGER_CONFIDENCE_THRESHOLD
 
 
 def _agents_manager_is_plan_approved(critique: dict | None, threshold: float) -> bool:
-    """Return True if the reflector approved the plan or confidence meets the threshold."""
+    """Return True if the reflector approved the plan or confidence meets the threshold.
+
+    Args:
+        critique: Reflector output dict containing ``approved``, ``confidence``, and optional
+            ``refined_plan`` keys. May be ``None`` when no critique has been produced yet.
+        threshold: Minimum confidence score required to treat the plan as approved when the
+            explicit ``approved`` flag is absent or False.
+
+    Returns:
+        True if the reflector set ``approved=True`` or the recorded confidence score is greater
+        than or equal to ``threshold``; False in all other cases including when ``critique`` is
+        ``None``.
+    """
 
     if not critique:
         return False
@@ -149,7 +161,15 @@ class AgentsState(TypedDict):
 
 
 async def _agents_manager_protocol_phase(state: AgentsState) -> dict:
-    """Phase 0: boot validation. Halts the session on any integrity breach."""
+    """Phase 0: boot validation. Halts the session on any integrity breach.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_START.format(
@@ -189,7 +209,15 @@ async def _agents_manager_protocol_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_task_phase(state: AgentsState) -> dict:
-    """Phase 1: confirm the task is ready for processing. No LLM needed."""
+    """Phase 1: confirm the task is ready for processing. No LLM needed.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_START.format(
@@ -215,7 +243,15 @@ async def _agents_manager_task_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_librarian_phase(state: AgentsState) -> dict:
-    """Phase 2: RAG retrieval. Skips the vector store call on retries when context is cached."""
+    """Phase 2: RAG retrieval. Skips the vector store call on retries when context is cached.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_GENERIC.format(
@@ -250,7 +286,15 @@ async def _agents_manager_librarian_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_architect_phase(state: AgentsState) -> dict:
-    """Phase 3: plan drafting. On retries, uses the reflector's refined plan instead."""
+    """Phase 3: plan drafting. On retries, uses the reflector's refined plan instead.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_GENERIC.format(
             phase=AGENTS_MANAGER_PHASE_3, description=AGENTS_MANAGER_DESC_PHASE_3
@@ -286,7 +330,15 @@ async def _agents_manager_architect_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_critique_phase(state: AgentsState) -> dict:
-    """Phase 4: reflector confidence audit."""
+    """Phase 4: reflector confidence audit.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_GENERIC.format(
@@ -334,7 +386,15 @@ async def _agents_manager_critique_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_execute_phase(state: AgentsState) -> dict:
-    """Phase 5: engineer executes the approved plan."""
+    """Phase 5: engineer executes the approved plan.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_GENERIC.format(
@@ -380,7 +440,15 @@ async def _agents_manager_execute_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_verify_phase(state: AgentsState) -> dict:
-    """Phase 6: QA verification of the execution result."""
+    """Phase 6: QA verification of the execution result.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     logger.info(
         AGENTS_MANAGER_LOG_PHASE_GENERIC.format(
@@ -434,13 +502,28 @@ async def _agents_manager_verify_phase(state: AgentsState) -> dict:
 
 
 async def _agents_manager_increment_retry(state: AgentsState) -> dict:
-    """Bump retry counter before looping back to librarian."""
+    """Bump retry counter before looping back to librarian.
+
+    Args:
+        state: Current LangGraph AgentsState dict carrying task_id, content, context, plan,
+            critique, result, and all retry/config fields.
+
+    Returns:
+        Partial state dict merged by LangGraph into the running state.
+    """
 
     return {"retry_count": state["retry_count"] + 1}
 
 
 def _agents_manager_route_after_protocol(state: AgentsState) -> str:
-    """Green means proceed; anything else kills the session."""
+    """Green means proceed; anything else kills the session.
+
+    Args:
+        state: Current AgentsState.
+
+    Returns:
+        LangGraph node name string indicating which node to visit next.
+    """
 
     return (
         AGENTS_MANAGER_NODE_TASK
@@ -450,7 +533,14 @@ def _agents_manager_route_after_protocol(state: AgentsState) -> str:
 
 
 def _agents_manager_route_after_critique(state: AgentsState) -> str:
-    """Approve on high confidence or explicit approval. Force-execute after max retries."""
+    """Approve on high confidence or explicit approval. Force-execute after max retries.
+
+    Args:
+        state: Current AgentsState.
+
+    Returns:
+        LangGraph node name string indicating which node to visit next.
+    """
 
     critique = state.get("critique")
     if not critique:
@@ -477,7 +567,14 @@ def _agents_manager_route_after_critique(state: AgentsState) -> str:
 
 
 def _agents_manager_route_after_verify(state: AgentsState) -> str:
-    """Pass through on success. On failure, retry or accept as-is if budget is blown."""
+    """Pass through on success. On failure, retry or accept as-is if budget is blown.
+
+    Args:
+        state: Current AgentsState.
+
+    Returns:
+        LangGraph node name string indicating which node to visit next.
+    """
 
     if not state.get("error"):
         return AGENTS_MANAGER_NODE_END_SUCCESS
@@ -500,11 +597,22 @@ class AgentsManager:
     """Builds and runs the LangGraph state machine for the full agent pipeline."""
 
     def __init__(self, graph) -> None:
+        """Store the compiled graph instance.
+
+        Args:
+            graph: Compiled LangGraph StateGraph instance produced by
+                ``StateGraph.compile(checkpointer=...)``.
+        """
         self._graph = graph
 
     @classmethod
     async def agents_manager_create(cls) -> "AgentsManager":
-        """Build the graph."""
+        """Build the graph.
+
+        Returns:
+            Fully compiled AgentsManager with a MemorySaver checkpointer wired into the
+            LangGraph StateGraph, ready to invoke or stream events.
+        """
 
         builder = StateGraph(AgentsState)
 
@@ -562,7 +670,18 @@ class AgentsManager:
         return cls(graph)
 
     async def agents_manager_run(self, request: ApiSchemasTaskRequest) -> ApiSchemasTaskResponse:
-        """Run the full pipeline synchronously and return a completed response."""
+        """Run the full pipeline synchronously and return a completed response.
+
+        Args:
+            request: ApiSchemasTaskRequest carrying the ``task_id`` (unique identifier used as
+                the LangGraph thread ID and GCS artifact key) and ``content`` (raw task
+                description passed to every agent phase).
+
+        Returns:
+            ApiSchemasTaskResponse populated with ``status``, ``result``, ``confidence``,
+            ``agent_trace`` (the full message log), ``artifact_uri`` (GCS URI of the uploaded
+            result), and an optional ``error`` / ``error_code`` on failure.
+        """
 
         initial_state: AgentsState = {
             "task_id": request.task_id,
@@ -691,7 +810,28 @@ class AgentsManager:
         verbosity: str | None = None,
         resume: bool = False,
     ) -> AsyncGenerator[dict[str, Any], None]:
-        """Stream LangGraph events in real time for the Chainlit UI."""
+        """Stream LangGraph events in real time for the Chainlit UI.
+
+        Args:
+            request: ApiSchemasTaskRequest carrying ``task_id`` and ``content``.
+            confidence_threshold: Override the reflector gate confidence floor. When ``None``
+                the module-level ``CONFIDENCE_THRESHOLD`` constant is used.
+            validator_confidence_threshold: Override the validator gate score floor. When
+                ``None`` the ``AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT`` constant is used.
+            max_retries: Override the maximum number of architect/reflector retry iterations.
+                When ``None`` the ``AGENTS_MANAGER_MAX_RETRIES`` constant is used.
+            verbosity: Output detail level forwarded to the architect and engineer agents
+                (e.g. ``"standard"``, ``"verbose"``). Defaults to
+                ``AGENTS_MANAGER_VERBOSITY_DEFAULT`` when ``None``.
+            resume: When ``True`` the graph is invoked with ``None`` as input so LangGraph
+                restores execution from the MemorySaver checkpoint for the given ``task_id``
+                instead of reinitialising state from scratch.
+
+        Returns:
+            Async generator of LangGraph event dicts as produced by
+            ``StateGraph.astream_events``. On unhandled exceptions a terminal error event
+            dict is yielded before the generator closes.
+        """
 
         initial_state: AgentsState = {
             "task_id": request.task_id,

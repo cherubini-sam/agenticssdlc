@@ -1,3 +1,10 @@
+# Hook chain (runs in order on every commit):
+#   1. pre-commit-hooks — whitespace, EOF, YAML/JSON validity, secret detection
+#   2. black             — auto-format Python (line-length=100)
+#   3. isort             — sort imports (black-compatible profile)
+#   4. flake8            — lint; E203/W503 suppressed (black-generated patterns)
+#   5. pytest-coverage   — unit suite must pass and hit ≥70% branch coverage
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -7,7 +14,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-        args: ["--maxkb=2048"]
+        args: ["--maxkb=2048"]  # 2 MB cap prevents accidental model/dataset commits
       - id: detect-private-key
 
   - repo: https://github.com/psf/black
@@ -26,7 +33,7 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
-        args: ["--extend-ignore=E203,W503"]
+        args: ["--extend-ignore=E203,W503"]  # E203/W503 conflict with black's slice and line-break style
 
   - repo: local
     hooks:

@@ -27,7 +27,11 @@ _gcs_client: Any | None = None
 
 
 def _storage_gcs_get_client() -> Any:
-    """Lazy-init the module-level GCS client singleton."""
+    """Lazy-init the module-level GCS client singleton.
+
+    Returns:
+        Singleton google.cloud.storage.Client instance.
+    """
 
     global _gcs_client
     if _gcs_client is None:
@@ -53,7 +57,18 @@ class StorageGcs:
         return bool(self._bucket_name)
 
     def storage_gcs_upload_artifact(self, task_id: str, phase: str, content: Any) -> str | None:
-        """Upload an artifact dict/string to GCS and return its gs:// URI."""
+        """Upload an artifact dict/string to GCS and return its gs:// URI.
+
+        Args:
+            task_id: Workflow run identifier used in the GCS object path.
+            phase: Artifact phase identifier (e.g. phase_5_result.json); drives
+                content-type selection (.md suffix → text/markdown, else JSON).
+            content: Dict or string to serialize and upload.
+
+        Returns:
+            gs:// URI of the uploaded object, or None if GCS is disabled or
+            the upload fails.
+        """
 
         if not self.is_enabled:
             return None

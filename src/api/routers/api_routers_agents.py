@@ -27,7 +27,16 @@ router = APIRouter(prefix="/api/v1", tags=["agents"])
 
 @router.get("/agents/status", response_model=ApiSchemasSystemStatus)
 async def api_routers_agents_status(request: Request) -> ApiSchemasSystemStatus:
-    """Return current agent roster, uptime, and vector store backend."""
+    """Return current agent roster, uptime, and vector store backend.
+
+    Args:
+        request: Starlette request providing access to app.state.vector_store
+            and app.state.start_time, set during application lifespan startup.
+
+    Returns:
+        ApiSchemasSystemStatus with version, uptime_s, vector_store backend
+        name, and a 6-agent roster with current active/idle status.
+    """
 
     settings = get_settings()
     model = settings.gemini_model

@@ -35,7 +35,12 @@ router = APIRouter(prefix="/api/v1", tags=["tasks"])
 
 
 async def api_routers_audit(coro, task_id: str) -> None:
-    """Wrap a fire-and-forget audit coroutine so failures are logged instead of silently dropped."""
+    """Wrap a fire-and-forget audit coroutine so failures are logged instead of silently dropped.
+
+    Args:
+        coro: Awaitable audit coroutine to execute.
+        task_id: Workflow ID used for error log context.
+    """
 
     try:
         await coro
@@ -47,7 +52,17 @@ async def api_routers_audit(coro, task_id: str) -> None:
 async def api_routers_create_task(
     task_request: ApiSchemasTaskRequest, request: Request
 ) -> ApiSchemasTaskResponse:
-    """Execute the full agent pipeline and return the result inline."""
+    """Execute the full agent pipeline and return the result inline.
+
+    Args:
+        task_request: Validated ApiSchemasTaskRequest with task_id and content.
+        request: Starlette Request providing access to app.state (manager,
+            audit_logger, supabase_logger).
+
+    Returns:
+        ApiSchemasTaskResponse with status, result, confidence, phases_completed,
+        latency_ms, agent_trace, and optional error.
+    """
 
     ACTIVE_WORKFLOWS.inc()
     start = time.perf_counter()

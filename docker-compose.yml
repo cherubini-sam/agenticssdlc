@@ -1,3 +1,7 @@
+# Local development only. Production runs on Cloud Run with secrets from
+# Secret Manager and credentials via Workload Identity — never use this
+# compose file to simulate production.
+
 version: "3.9"
 
 services:
@@ -71,6 +75,8 @@ services:
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
       - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+      # dev-secret-change-in-prod is intentionally weak; override via .env in any
+      # shared environment — never deploy this value outside localhost.
       - CHAINLIT_AUTH_SECRET=${CHAINLIT_AUTH_SECRET:-dev-secret-change-in-prod}
       - ENVIRONMENT=local
     depends_on:
@@ -82,6 +88,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      # 90s start_period: embedding model is downloaded and loaded on first request,
+      # which takes ~60–80s; health checks must not fail during that window.
       start_period: 90s
 
 volumes:

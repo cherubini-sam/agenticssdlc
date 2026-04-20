@@ -52,7 +52,12 @@ class SyntheticDataPoint(BaseModel):
 
 
 class TuningSettings(BaseSettings):
-    """Pydantic settings model loaded from environment variables."""
+    """Pydantic settings model loaded from environment variables and .env file.
+
+    Covers GCP project/region, GCS bucket, base model, synthesizer model,
+    training hyperparameters (epochs, learning rate multiplier, adapter size),
+    and the optional tuned Protocol endpoint ID.
+    """
 
     model_config = SettingsConfigDict(
         env_file=TUNING_CONFIG_ENV_FILE,
@@ -85,6 +90,10 @@ class TuningSettings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def tuning_config_settings_get() -> TuningSettings:
-    """Get singleton TuningSettings instance."""
+    """Get singleton TuningSettings instance.
+
+    Returns:
+        TuningSettings created once and cached for the process lifetime.
+    """
 
     return TuningSettings()

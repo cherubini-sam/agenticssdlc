@@ -20,7 +20,14 @@ from src.core.core_utils import (
 
 
 def core_logging_setup_logging(log_level: str = CORE_LOGGING_DEFAULT_LOG_LEVEL) -> None:
-    """Wire up logging. Picks JSON or console format based on K_SERVICE env var."""
+    """Wire up logging. Picks JSON or console format based on K_SERVICE env var.
+
+    Args:
+        log_level: Standard logging level name (e.g. "INFO", "DEBUG"). Case
+            insensitive; falls back to INFO if unrecognized. When K_SERVICE is
+            set (Cloud Run), emits Cloud Logging-compatible JSON. Otherwise
+            uses a human-readable console formatter.
+    """
 
     level = getattr(logging, log_level.upper(), logging.INFO)
 
@@ -28,6 +35,7 @@ def core_logging_setup_logging(log_level: str = CORE_LOGGING_DEFAULT_LOG_LEVEL) 
         # Running on Cloud Run — emit JSON that Cloud Logging parses natively
         class JsonFormatter(logging.Formatter):
             def format(self, record: logging.LogRecord) -> str:
+                """Serialize a log record to a Cloud Logging-compatible JSON string."""
                 log_entry = {
                     CORE_LOGGING_JSON_KEY_SEVERITY: record.levelname,
                     CORE_LOGGING_JSON_KEY_MESSAGE: record.getMessage(),

@@ -15,7 +15,16 @@ from src.core.core_utils import CORE_LLM_DEFAULT_TEMPERATURE  # noqa: E402
 
 @lru_cache(maxsize=1)
 def core_llm_get_llm(temperature: float = CORE_LLM_DEFAULT_TEMPERATURE) -> ChatVertexAI:
-    """Cached Gemini client. Auth via ADC — no keys needed in code."""
+    """Cached Gemini client. Auth via ADC — no keys needed in code.
+
+    Args:
+        temperature: Sampling temperature; 0.0 for deterministic outputs,
+            higher values increase creativity.
+
+    Returns:
+        Singleton ChatVertexAI instance cached for the process lifetime.
+        Re-call with a different temperature to get a separate cached instance.
+    """
 
     s = get_settings()
     return ChatVertexAI(

@@ -71,7 +71,15 @@ async def ui_chainlit_app_set_starters() -> list[cl.Starter]:
 @cl.password_auth_callback
 def ui_chainlit_app_auth_callback(_username: str, password: str) -> cl.User | None:
     """Validate login against the bcrypt hash in UI_AUTH_PASSWORD_HASH env var.
-    Username is ignored; any value is accepted."""
+
+    Args:
+        _username: Accepted but ignored; any value is valid.
+        password: Plain-text password to verify against the stored bcrypt hash.
+
+    Returns:
+        cl.User with role "viewer" on success; None if the env var is unset,
+        the password does not match, or bcrypt raises an exception.
+    """
 
     pw_hash = os.getenv("UI_AUTH_PASSWORD_HASH", "").strip()
     if not pw_hash:

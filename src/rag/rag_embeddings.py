@@ -25,12 +25,24 @@ class RagEmbeddings(Embeddings):
     """Wraps sentence-transformers so LangChain vector stores can use BGE-large directly."""
 
     def __init__(self, model_name: str = RAG_EMBEDDINGS_MODEL_NAME) -> None:
+        """
+        Args:
+            model_name: HuggingFace model identifier for SentenceTransformer;
+                defaults to BAAI/bge-large-en-v1.5.
+        """
         device = rag_embeddings_detect_device()
         self.model_name = model_name
         self.model = SentenceTransformer(model_name, device=device)
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Embed a list of documents."""
+        """Embed a list of documents.
+
+        Args:
+            texts: List of document strings to embed.
+
+        Returns:
+            List of 1024-dim normalized float vectors, one per input text.
+        """
 
         # normalize_embeddings=True so we can use raw dot product as cosine sim
         return self.model.encode(
@@ -41,7 +53,14 @@ class RagEmbeddings(Embeddings):
         ).tolist()
 
     def embed_query(self, text: str) -> list[float]:
-        """Embed a query."""
+        """Embed a query.
+
+        Args:
+            text: Query string to embed.
+
+        Returns:
+            1024-dim normalized float vector.
+        """
 
         return self.model.encode(
             text,

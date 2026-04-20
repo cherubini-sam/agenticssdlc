@@ -5,7 +5,7 @@
   <description>"Safe-defaults optimization guide for any unrecognized or third-party LLM"</description>
   <globs>[]</globs>
   <alwaysApply>false</alwaysApply>
-  <tags>["type:shard", "generic", "fallback", "openai-compatible"]</tags>
+  <tags>["type:shard", "generic", "fallback", "any-provider"]</tags>
   <priority>"LOW"</priority>
   <version>"1.0.0"</version>
 </meta>
@@ -16,8 +16,8 @@
 
 <scope>Conservative safe-defaults for any unrecognized or third-party LLM fallback.</scope>
 
-**Model:** Any unrecognized model (not Claude, not Gemini)
-**Architecture:** Unknown — assume OpenAI-compatible transformer
+**Model:** Any unrecognized model
+**Architecture:** Unknown — assume OpenAI-compatible REST API (most common standard; validate before use)
 **Latency SLO:** Unknown — apply conservative timeouts
 
 | Spec | Conservative Assumption |
@@ -72,7 +72,7 @@ Streaming DISABLED — breaks tool detection, JSON parsing, and retry logic in a
 - Batch API: assume NOT supported unless documented.
 - Set explicit `max_tokens` per call — unknown models may generate runaway output.
 
-- [ ] **Check 1:** Model ID verified and not matching any known Claude/Gemini shard.
+- [ ] **Check 1:** Model ID verified against shard catalog in `config/settings.json`; no matching named shard found.
 - [ ] **Check 2:** `max_tokens` explicitly set in every request.
 - [ ] **Check 3:** Function calling schema validated before chaining tool calls.
 - [ ] **Check 4:** Reasoning chain ≤4 steps; validation checkpoint added if longer.

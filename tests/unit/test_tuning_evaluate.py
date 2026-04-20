@@ -190,6 +190,8 @@ class TestTuningEvaluateTunedEndpoint:
 
     @pytest.fixture(autouse=True)
     def _clear_settings_cache(self):
+        """Clear lru_cache before and after every test for isolation."""
+
         tuning_config_settings_get.cache_clear()
         yield
         tuning_config_settings_get.cache_clear()

@@ -30,6 +30,7 @@ SELECT
     ROUND(AVG(confidence), 4)                                   AS avg_confidence,
     ROUND(STDDEV(confidence), 4)                                AS stddev_confidence,
     ROUND(AVG(latency_ms), 1)                                   AS avg_latency_ms,
+    -- P95 chosen over average to surface tail latency outliers that avg masks
     ROUND(APPROX_QUANTILES(latency_ms, 100)[OFFSET(95)], 1)    AS p95_latency_ms,
     COUNT(*)                                                    AS sample_size
 FROM

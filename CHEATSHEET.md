@@ -1,38 +1,35 @@
-# Agentics Build & Deploy
+# Agentics SDLC — Developer Cheatsheet
+
+A quick-reference guide for local development, deployment, and operational commands.
 
 ## Table of Contents
 
-- [Agentics Build \& Deploy](#agentics-build--deploy)
-  - [Table of Contents](#table-of-contents)
-  - [1. GCP Project Setup](#1-gcp-project-setup)
-  - [2. Vertex AI (LLM)](#2-vertex-ai-llm)
-  - [3. API Key](#3-api-key)
-  - [4. Qdrant Cloud (Vector Store)](#4-qdrant-cloud-vector-store)
-  - [5. Supabase (Audit Trail)](#5-supabase-audit-trail)
-  - [6. Grafana Cloud (Observability)](#6-grafana-cloud-observability)
-  - [7. GitHub Configuration](#7-github-configuration)
-  - [8. Local Development](#8-local-development)
-  - [9. Local Stack \& First Test](#9-local-stack--first-test)
-  - [10. Deploy API to Cloud Run](#10-deploy-api-to-cloud-run)
-    - [First-Time Deploy (Service YAML)](#first-time-deploy-service-yaml)
-    - [Subsequent Redeploys](#subsequent-redeploys)
-    - [Verify](#verify)
-  - [11. Deploy UI to Cloud Run](#11-deploy-ui-to-cloud-run)
-  - [12. BigQuery Scheduled Queries](#12-bigquery-scheduled-queries)
-  - [13. Grafana Dashboard](#13-grafana-dashboard)
-  - [14. Production Redeploy (CI/CD)](#14-production-redeploy-cicd)
-  - [15. Erase Collection \& Reingest from Zero](#15-erase-collection--reingest-from-zero)
-  - [16. Rebuild, Push \& Deploy Both Services](#16-rebuild-push--deploy-both-services)
-  - [17. LoRA Fine-tuning Pipeline](#17-lora-fine-tuning-pipeline)
-    - [Full Pipeline (Generate, Train, Evaluate)](#full-pipeline-generate-train-evaluate)
-    - [Step 1: Generate Synthetic Data](#step-1-generate-synthetic-data)
-    - [Step 2: Train LoRA Adapter](#step-2-train-lora-adapter)
-    - [Step 3: Evaluate Model](#step-3-evaluate-model)
-    - [Hyperparameter Reference](#hyperparameter-reference)
+- [Prerequisites](#prerequisites)
+- [GCP Project Setup](#gcp-project-setup)
+- [Local Development](#local-development)
+- [RAG Knowledge Base](#rag-knowledge-base)
+- [Testing](#testing)
+- [Cloud Run Deployment](#cloud-run-deployment)
+- [Terraform Infrastructure](#terraform-infrastructure)
+- [Production Redeploy CI/CD](#production-redeploy-cicd)
+- [LoRA Fine-tuning Pipeline](#lora-fine-tuning-pipeline)
+- [Conventional Commits Protocol](#conventional-commits-protocol)
 
 ---
 
-## 1. GCP Project Setup
+## Prerequisites
+
+| Tool | Min Version | Install |
+|:---|:---|:---|
+| Python | 3.11+ | `pyenv install 3.11` |
+| Poetry | 1.8+ | `pip install poetry` |
+| gcloud CLI | any | `brew install google-cloud-sdk` |
+| Docker | 24+ | `brew install --cask docker` |
+| Terraform | 1.7+ | `brew install terraform` |
+
+---
+
+## GCP Project Setup
 
 ```bash
 PROJECT_ID="agentics-sdlc"
@@ -47,10 +44,10 @@ export GCP_PROJECT_ID="agentics-sdlc"
 bash scripts/scripts_bootstrap.sh
 ```
 
-```bash
-PROJECT_ID="agentics-sdlc"
-TF_BUCKET="tf-state-agentics-sdlc"
+### Terraform Bootstrap
 
+```bash
+TF_BUCKET="tf-state-agentics-sdlc"
 cd platform/terraform
 terraform init -backend-config="bucket=${TF_BUCKET}"
 terraform plan -var="project_id=${PROJECT_ID}"
@@ -58,7 +55,7 @@ terraform apply -var="project_id=${PROJECT_ID}"
 cd ../..
 ```
 
-**Capture outputs:**
+### Capture Terraform Outputs
 
 ```bash
 cd platform/terraform
@@ -66,6 +63,7 @@ terraform output artifacts_bucket_name
 terraform output artifact_registry_url
 terraform output api_sa_email
 
+# Export CI/CD service account key
 terraform output -raw cicd_sa_key_base64 | python3 -c "
 import sys, base64; print(base64.b64decode(sys.stdin.read().strip()).decode())
 " > /tmp/agentics-sdlc-cicd-key.json
@@ -74,233 +72,39 @@ cd ../..
 
 ---
 
-## 2. Vertex AI (LLM)
+## Local Development
 
-```bash
-PROJECT_ID="agentics-sdlc"
+### Minimum `.env`
 
-gcloud services enable aiplatform.googleapis.com --project=$PROJECT_ID
-
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${COMPUTE_SA}" \
-  --role="roles/aiplatform.user"
-
-python3 - << 'EOF'
-import vertexai
-from vertexai.generative_models import GenerativeModel
-vertexai.init(project="agentics-sdlc", location="us-central1")
-model = GenerativeModel("gemini-2.5-flash")
-print(model.generate_content("Reply with one word only: Hello").text.strip())
-EOF
-```
-
----
-
-## 3. API Key
-
-```bash
-PROJECT_ID="agentics-sdlc"
-
-AGENTICS_SDLC_API_KEY=$(openssl rand -hex 32)
-echo "$AGENTICS_SDLC_API_KEY"
-
-echo -n "${AGENTICS_SDLC_API_KEY}" | gcloud secrets versions add agentics-sdlc-api-key \
-  --data-file=- --project=$PROJECT_ID
-
-gcloud secrets versions access latest --secret=agentics-sdlc-api-key --project=$PROJECT_ID
-```
-
----
-
-## 4. Qdrant Cloud (Vector Store)
-
-```
-cloud.qdrant.io
-  Name:     agentics-sdlc-kb
-```
-
-```bash
-QDRANT_URL="https://XXXX.us-east4-0.gcp.cloud.qdrant.io:6333"
-QDRANT_API_KEY="your-uuid-key"
-PROJECT_ID="agentics-sdlc"
-
-curl -s -H "api-key: ${QDRANT_API_KEY}" "${QDRANT_URL}/collections" \
-  | python3 -c "import sys,json; r=json.load(sys.stdin); print('Collections:', len(r['result']['collections']))"
-
-echo -n "${QDRANT_URL}"     | gcloud secrets versions add qdrant-url     --data-file=- --project=$PROJECT_ID
-echo -n "${QDRANT_API_KEY}" | gcloud secrets versions add qdrant-api-key --data-file=- --project=$PROJECT_ID
-```
-
----
-
-## 5. Supabase (Audit Trail)
-
-```
-supabase.com/dashboard
-  Name: agentics-sdlc
-```
-
-**SQL Editor:**
-
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-CREATE TABLE IF NOT EXISTS agent_audit_log (
-    id            UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
-    session_id    TEXT        NOT NULL,
-    agent_name    TEXT        NOT NULL,
-    phase         INTEGER     NOT NULL CHECK (phase BETWEEN 1 AND 6),
-    latency_ms    NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    confidence    NUMERIC(5, 4) NOT NULL DEFAULT 0 CHECK (confidence BETWEEN 0 AND 1),
-    status        TEXT        NOT NULL CHECK (status IN ('success', 'error', 'retry')),
-    task_content  TEXT        NOT NULL DEFAULT '',
-    error         TEXT        NOT NULL DEFAULT '',
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_session_id   ON agent_audit_log (session_id);
-CREATE INDEX IF NOT EXISTS idx_audit_agent_name   ON agent_audit_log (agent_name);
-CREATE INDEX IF NOT EXISTS idx_audit_created_at   ON agent_audit_log (created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_confidence   ON agent_audit_log (confidence) WHERE status = 'success';
-
-CREATE TABLE IF NOT EXISTS workflow_snapshots (
-    id              UUID        DEFAULT uuid_generate_v4() PRIMARY KEY,
-    session_id      TEXT        NOT NULL UNIQUE,
-    phase_reached   INTEGER     NOT NULL DEFAULT 1,
-    retry_count     INTEGER     NOT NULL DEFAULT 0,
-    final_status    TEXT        NOT NULL CHECK (final_status IN ('completed', 'failed', 'retrying')),
-    confidence      NUMERIC(5, 4),
-    latency_ms      NUMERIC(10, 2),
-    snapshot_data   JSONB,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_snapshots_session_id ON workflow_snapshots (session_id);
-CREATE INDEX IF NOT EXISTS idx_snapshots_status     ON workflow_snapshots (final_status);
-
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS set_updated_at ON workflow_snapshots;
-CREATE TRIGGER set_updated_at
-    BEFORE UPDATE ON workflow_snapshots
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-GRANT SELECT, INSERT ON agent_audit_log TO anon, authenticated;
-GRANT SELECT, INSERT ON workflow_snapshots TO anon, authenticated;
-```
-
-**Project Settings**
-
-```bash
-PROJECT_ID="agentics-sdlc"
-SUPABASE_URL="https://XXXXXXXXXXXX.supabase.co"
-SUPABASE_KEY="eyJ..."
-SUPABASE_DB_URL="postgresql://postgres:PASSWORD@db.XXXXXXXXXXXX.supabase.co:5432/postgres"
-
-echo -n "${SUPABASE_URL}"    | gcloud secrets versions add supabase-url    --data-file=- --project=$PROJECT_ID
-echo -n "${SUPABASE_KEY}"    | gcloud secrets versions add supabase-key    --data-file=- --project=$PROJECT_ID
-echo -n "${SUPABASE_DB_URL}" | gcloud secrets versions add supabase-db-url --data-file=- --project=$PROJECT_ID
-```
-
----
-
-## 6. Grafana Cloud (Observability)
-
-```
-grafana.com
-Create stack: agentics-sdlc
-```
-
-**Add to `~/.zshrc` or `~/.bashrc` (NOT in .env):**
-```bash
-export GRAFANA_INSTANCE_ID="123456789"
-export GRAFANA_API_KEY="glc_eyJ..."
-export GRAFANA_PROMETHEUS_URL="https://prometheus-prod-XX-prod-us-east-2.grafana.net/api/prom/push"
-```
-
-**BigQuery data source:**
-```bash
-cd platform/terraform
-terraform output -raw grafana_sa_key_base64 | python3 -c "
-import sys, base64; print(base64.b64decode(sys.stdin.read().strip()).decode())
-" > /tmp/grafana-bq-key.json
-cat /tmp/grafana-bq-key.json
-rm /tmp/grafana-bq-key.json
-cd ../..
-```
-
----
-
-## 7. GitHub Configuration
-
-**Repository Secrets**
-
-| Secret | Value |
-|---|---|
-| `GCP_SA_JSON` | `cat /tmp/agentics-sdlc-cicd-key.json` |
-| `AGENTICS_SDLC_API_KEY` | Generated key from §3 |
-
-**Repository Variables**
-```
-GCP_PROJECT_ID = agentics-sdlc
-QDRANT_URL     = https://<your-cluster-id>.us-east4-0.gcp.cloud.qdrant.io:6333
-```
-
----
-
-## 8. Local Development
-
-```bash
-cat > .env << EOF
+```dotenv
 GCP_PROJECT_ID=agentics-sdlc
 GCP_REGION=us-central1
-GCS_BUCKET=$(cd platform/terraform && terraform output -raw artifacts_bucket_name && cd ../..)
 GEMINI_MODEL=gemini-2.5-flash
-SUPABASE_URL=https://XXXXXXXXXXXX.supabase.co
-SUPABASE_KEY=eyJ...
-SUPABASE_DB_URL=postgresql://postgres:PASSWORD@db.XXXXXXXXXXXX.supabase.co:5432/postgres
-QDRANT_URL=
-QDRANT_API_KEY=
 BIGQUERY_DATASET=agentics_sdlc_analytics
-MLFLOW_LOCAL=true
 LOG_LEVEL=INFO
 PORT=8080
-AGENTICS_SDLC_API_KEY=
 ALLOWED_ORIGINS=*
 RATE_LIMIT_RPM=60
-METRICS_USERNAME=
-METRICS_PASSWORD=
-EOF
+
+# Leave empty — disables auth for local dev
+AGENTICS_SDLC_API_KEY=
+
+# Leave empty — falls back to local ChromaDB
+QDRANT_URL=
+QDRANT_API_KEY=
 ```
 
----
+### Start Local Stack
 
-## 9. Local Stack & First Test
+| Terminal | Command | Purpose |
+|:---|:---|:---|
+| 1 | `poetry run uvicorn src.api.main:create_app --factory --reload --port 8080` | API backend |
+| 2 | `poetry run python scripts/scripts_rag.py` | Ingest knowledge base |
+| 3 | `curl -sf http://localhost:8080/health` | Health check |
+
+### Submit a Test Task
 
 ```bash
-# Terminal 1 — API
-poetry run uvicorn src.api.main:create_app --factory --reload --port 8080
-
-# Terminal 2 — ingest knowledge base
-# Incremental ingest (default — skips already-indexed chunks):
-poetry run python scripts/scripts_rag.py
-
-# Full reset: wipe the collection + manifest, then re-ingest from scratch:
-poetry run python scripts/scripts_rag.py --reset
-
-# Target a custom path:
-poetry run python scripts/scripts_rag.py --path .agent/ --reset
-
-# Terminal 3 — health check
-curl -sf http://localhost:8080/health
-
-# Submit task
 curl -s -X POST http://localhost:8080/api/v1/task \
   -H "Content-Type: application/json" \
   -d '{"content": "Explain the REFLECTOR confidence audit in Agentics SDLC"}' \
@@ -310,20 +114,69 @@ print(f'Status:     {r[\"status\"]}')
 print(f'Confidence: {r[\"confidence\"]:.2f}')
 print(f'Latency:    {r[\"latency_ms\"]:.0f}ms')
 "
+```
 
-# Verify rate limit headers
+### Verify Rate Limit Headers
+
+```bash
 curl -s -D - -X POST http://localhost:8080/api/v1/task \
   -H "Content-Type: application/json" \
   -d '{"content": "ping"}' \
   -o /dev/null | grep -i "x-ratelimit\|x-rate"
+```
 
-# Verify Prometheus metrics
+### Verify Prometheus Metrics
+
+```bash
 curl -s http://localhost:8080/metrics | grep "^agentics_sdlc_" | head -6
+```
+
+### Start Chainlit UI
+
+```bash
+# Generate bcrypt hash for UI auth
+python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
+
+export UI_AUTH_PASSWORD_HASH='$2b$12$...'
+poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 ```
 
 ---
 
-## 10. Deploy API to Cloud Run
+## RAG Knowledge Base
+
+| Command | Action |
+|:---|:---|
+| `poetry run python scripts/scripts_rag.py` | Incremental ingest (skips already-indexed chunks) |
+| `poetry run python scripts/scripts_rag.py --reset` | Full reset: wipe collection + manifest, re-ingest |
+| `poetry run python scripts/scripts_rag.py --path .agent/ --reset` | Target a custom path |
+
+### Re-ingest Against Qdrant Cloud
+
+```bash
+QDRANT_URL=$(gcloud secrets versions access latest --secret=qdrant-url --project=$PROJECT_ID)
+QDRANT_API_KEY=$(gcloud secrets versions access latest --secret=qdrant-api-key --project=$PROJECT_ID)
+
+# Incremental (safe for routine redeploys)
+QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY poetry run python scripts/scripts_rag.py
+
+# Full reset (use when chunk params or directory layout changed)
+QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY poetry run python scripts/scripts_rag.py --reset
+```
+
+---
+
+## Testing
+
+| Command | Scope |
+|:---|:---|
+| `poetry run pytest --cov=src --cov-report=term-missing` | All tests with coverage |
+| `poetry run pytest tests/unit/` | Unit tests only |
+| `poetry run pytest tests/integration/` | Integration tests only |
+
+---
+
+## Cloud Run Deployment
 
 ### First-Time Deploy (Service YAML)
 
@@ -342,6 +195,7 @@ gcloud auth configure-docker gcr.io --quiet
 docker build --platform linux/amd64 -f platform/docker/Dockerfile.api -t ${IMAGE}:latest .
 docker push ${IMAGE}:latest
 
+# Generate and apply the Cloud Run service manifest
 cat > /tmp/agentics-sdlc-deploy.yaml << EOF
 apiVersion: serving.knative.dev/v1
 kind: Service
@@ -350,18 +204,13 @@ metadata:
   namespace: '${NAMESPACE}'
   annotations:
     run.googleapis.com/ingress: all
-    run.googleapis.com/client-name: gcloud
 spec:
   template:
     metadata:
       annotations:
         autoscaling.knative.dev/minScale: '1'
         autoscaling.knative.dev/maxScale: '10'
-        run.googleapis.com/cpu-throttling: 'true'
-        run.googleapis.com/sessionAffinity: 'false'
         run.googleapis.com/startup-cpu-boost: 'true'
-      labels:
-        run.googleapis.com/startupProbeType: Custom
     spec:
       containerConcurrency: 160
       timeoutSeconds: 300
@@ -384,8 +233,6 @@ spec:
           value: agentics_sdlc_analytics
         - name: RATE_LIMIT_RPM
           value: '60'
-        - name: MLFLOW_LOCAL
-          value: 'false'
         - name: ALLOWED_ORIGINS
           value: '*'
         - name: AGENTICS_SDLC_API_KEY
@@ -418,16 +265,6 @@ spec:
             secretKeyRef:
               name: qdrant-api-key
               key: latest
-        - name: METRICS_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: metrics-username
-              key: latest
-        - name: METRICS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: metrics-password
-              key: latest
         startupProbe:
           httpGet:
             path: /health
@@ -451,10 +288,6 @@ EOF
 gcloud run services replace /tmp/agentics-sdlc-deploy.yaml \
   --region=us-central1 \
   --project=$PROJECT_ID
-
-CLOUD_RUN_URL=$(gcloud run services describe agentics-sdlc-api \
-  --region=us-central1 --format="value(status.url)" --project=$PROJECT_ID)
-echo "API deployed: ${CLOUD_RUN_URL}"
 ```
 
 ### Subsequent Redeploys
@@ -467,275 +300,209 @@ gcloud run deploy agentics-sdlc-api \
   --region=us-central1 \
   --project=$PROJECT_ID \
   --platform managed \
-  --memory 4Gi \
-  --cpu 2 \
-  --min-instances 0 \
-  --max-instances 10 \
+  --memory 4Gi --cpu 2 \
+  --min-instances 0 --max-instances 10 \
   --timeout 300 \
-  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCS_BUCKET=artifacts-${PROJECT_ID},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*" \
+  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCS_BUCKET=artifacts-${PROJECT_ID},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,ALLOWED_ORIGINS=*" \
   --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest"
 ```
 
-### Verify
+### Verify API Deployment
 
 ```bash
 CLOUD_RUN_URL=$(gcloud run services describe agentics-sdlc-api \
   --region=us-central1 --format="value(status.url)" --project=$PROJECT_ID)
-
 curl -f "${CLOUD_RUN_URL}/health"
 
 PROD_KEY=$(gcloud secrets versions access latest --secret=agentics-sdlc-api-key --project=$PROJECT_ID)
 curl -s -X POST "${CLOUD_RUN_URL}/api/v1/task" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: ${PROD_KEY}" \
-  -d '{"content": "Explain the REFLECTOR confidence audit in Agentics SDLC"}' \
+  -d '{"content": "Explain the REFLECTOR confidence audit"}' \
   | python3 -c "
 import sys,json; r=json.load(sys.stdin)
 print(f'Status:     {r[\"status\"]}')
 print(f'Confidence: {r[\"confidence\"]:.2f}')
 print(f'Latency:    {r[\"latency_ms\"]:.0f}ms')
 "
-
-curl -s -D - -X POST "${CLOUD_RUN_URL}/api/v1/task" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: ${PROD_KEY}" \
-  -d '{"content": "ping"}' \
-  -o /dev/null | grep -i "x-ratelimit\|x-rate"
 ```
 
----
-
-## 11. Deploy UI to Cloud Run
+### Deploy UI to Cloud Run
 
 ```bash
-# Generate and copy in UI_AUTH_PASSWORD_HASH
+# Generate bcrypt hash and store as secret
 python -c "import bcrypt; print(bcrypt.hashpw(b'your-chosen-password', bcrypt.gensalt()).decode())"
+echo -n '<bcrypt-hash>' | gcloud secrets versions add ui-auth-password-hash --data-file=- --project=$GCP_PROJECT_ID
 
-echo -n '<bcrypt-hash>' | gcloud secrets versions add ui-auth-password-hash \
-  --data-file=- --project=$GCP_PROJECT_ID
-
+# Generate JWT secret for Chainlit session auth
 openssl rand -hex 32
+echo -n "<jwt-secret>" | gcloud secrets versions add chainlit-auth-secret --data-file=- --project=$GCP_PROJECT_ID
 
-# Copy output to CHAINLIT_AUTH_SECRET
-echo -n "<jwt-secret>" | gcloud secrets versions add chainlit-auth-secret \
-  --data-file=- --project=$GCP_PROJECT_ID
-
-# Apply Terraform
-cd platform/terraform
-terraform apply -var="project_id=$GCP_PROJECT_ID" -var="region=us-central1"
-cd ../..
-
-# Build and push
-docker system prune -f && docker builder prune -f
-gcloud auth configure-docker gcr.io
-
-docker build \
-  --platform linux/amd64 \
-  --no-cache \
+docker build --platform linux/amd64 --no-cache \
   -f platform/docker/Dockerfile.ui \
-  -t gcr.io/$GCP_PROJECT_ID/agentics-sdlc-ui:latest \
-  .
+  -t gcr.io/$GCP_PROJECT_ID/agentics-sdlc-ui:latest .
 
 docker push gcr.io/$GCP_PROJECT_ID/agentics-sdlc-ui:latest
 
-# Deploy
 gcloud run deploy agentics-sdlc-ui \
   --image gcr.io/$GCP_PROJECT_ID/agentics-sdlc-ui:latest \
-  --region us-central1 \
-  --platform managed \
+  --region us-central1 --platform managed \
   --allow-unauthenticated \
-  --memory 4Gi \
-  --cpu 2 \
-  --min-instances 1 \
-  --max-instances 10 \
-  --timeout 900 \
-  --session-affinity \
+  --memory 4Gi --cpu 2 \
+  --min-instances 1 --max-instances 10 \
+  --timeout 900 --session-affinity \
   --set-env-vars "GCP_PROJECT_ID=$GCP_PROJECT_ID,ENVIRONMENT=production" \
   --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,CHAINLIT_AUTH_SECRET=chainlit-auth-secret:latest,UI_AUTH_PASSWORD_HASH=ui-auth-password-hash:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest" \
   --project $GCP_PROJECT_ID
-
-# Sync Terraform state
-cd platform/terraform
-terraform apply -var="project_id=$GCP_PROJECT_ID" -var="region=us-central1"
-cd ../..
-
-# Verify
-UI_URL=$(gcloud run services describe agentics-sdlc-ui \
-  --region us-central1 --format 'value(status.url)')
-echo "UI: $UI_URL"
-curl -f "$UI_URL/health"
 ```
 
----
-
-## 12. BigQuery Scheduled Queries
-
-```
-  KPI 1 — Daily Agent Call Volume:
-    Destination table: agentics_sdlc_analytics.kpi_daily_agent_call_volume
-
-  KPI 2 — Avg Confidence & Latency per Agent (7d):
-    Destination table: agentics_sdlc_analytics.kpi_avg_confidence_latency
-
-  KPI 3 — Low-Confidence Sessions:
-    Destination table: agentics_sdlc_analytics.kpi_low_confidence_sessions
-```
-
----
-
-## 13. Grafana Dashboard
-
-**Import dashboard:**
-```
-Grafana Cloud
-  Import: observability/grafana/agentics-sdlc-dashboard.json
-  Select Prometheus data source
-```
-
----
-
-## 14. Production Redeploy (CI/CD)
-
-Every push to `main` triggers the GitHub Actions pipeline automatically (4 sequential jobs):
-
-1. **quality** — Black format check, isort, Flake8 lint, Mypy type-check
-2. **test** — pytest unit tests with coverage (≥70%) against a Postgres 16 service container
-3. **build** — Build & push `agentics-sdlc-api:<sha>` and `agentics-sdlc-ui:<sha>` to GCR (main branch only)
-4. **deploy** — Deploy API then UI to Cloud Run (`us-central1`), verify `/health` on both (requires `production` environment approval)
-
-**Re-ingest knowledge base after deploy:**
+### Rebuild and Deploy Both Services
 
 ```bash
-QDRANT_URL=$(gcloud secrets versions access latest --secret=qdrant-url --project=$PROJECT_ID)
-QDRANT_API_KEY=$(gcloud secrets versions access latest --secret=qdrant-api-key --project=$PROJECT_ID)
-
-# Incremental (skips already-indexed chunks — safe for routine redeploys):
-QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py
-
-# Full reset (use when chunk params or directory layout changed):
-QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py --reset
-```
-
----
-
-## 15. Erase Collection & Reingest from Zero
-
-Wipes the `agentics_sdlc_kb` collection and the local ingest manifest entirely, then rebuilds from scratch.
-
-```bash
-PROJECT_ID="agentics-sdlc"
-
-# Pull credentials from Secret Manager
-QDRANT_URL=$(gcloud secrets versions access latest --secret=qdrant-url --project=$PROJECT_ID)
-QDRANT_API_KEY=$(gcloud secrets versions access latest --secret=qdrant-api-key --project=$PROJECT_ID)
-
-# Full reset: drop collection + delete manifest + re-ingest
-QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py --reset
-
-# Incremental ingest only (skips already-indexed chunks):
-QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py
-
-# Target a custom path:
-QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY \
-  poetry run python scripts/scripts_rag.py --path .agent/ --reset
-```
-
----
-
-## 16. Rebuild, Push & Deploy Both Services
-
-Full rebuild of both Docker images from scratch, push to GCR, and deploy to Cloud Run.
-
-```bash
-# Safe prune — only removes unused/dangling resources
-# docker system prune -f
-# docker builder prune -f
-
 PROJECT_ID="agentics-sdlc"
 REGISTRY_URL=$(cd platform/terraform && terraform output -raw artifact_registry_url && cd ../..)
-
 API_IMAGE="${REGISTRY_URL}/agentics-sdlc-api"
 UI_IMAGE="gcr.io/${PROJECT_ID}/agentics-sdlc-ui"
 
 gcloud auth configure-docker gcr.io --quiet
-
-# Clean Docker cache
 docker system prune -f && docker builder prune -f
 
 # API
-docker build \
-  --platform linux/amd64 \
-  --no-cache \
-  -f platform/docker/Dockerfile.api \
-  -t "${API_IMAGE}:latest" .
-
+docker build --platform linux/amd64 --no-cache -f platform/docker/Dockerfile.api -t "${API_IMAGE}:latest" .
 docker push "${API_IMAGE}:latest"
-
-gcloud run deploy agentics-sdlc-api \
-  --image="${API_IMAGE}:latest" \
-  --region=us-central1 \
-  --project=$PROJECT_ID \
-  --platform managed \
-  --memory 4Gi \
-  --cpu 2 \
-  --min-instances 0 \
-  --max-instances 10 \
-  --timeout 300 \
-  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCS_BUCKET=artifacts-${PROJECT_ID},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*" \
+gcloud run deploy agentics-sdlc-api --image="${API_IMAGE}:latest" --region=us-central1 --project=$PROJECT_ID \
+  --platform managed --memory 4Gi --cpu 2 --min-instances 0 --max-instances 10 --timeout 300 \
+  --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},GCS_BUCKET=artifacts-${PROJECT_ID},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,ALLOWED_ORIGINS=*" \
   --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest"
 
-# Verify API
-API_URL=$(gcloud run services describe agentics-sdlc-api \
-  --region=us-central1 --format="value(status.url)" --project=$PROJECT_ID)
-curl -f "${API_URL}/health" && echo "API OK"
-
 # UI
-docker build \
-  --platform linux/amd64 \
-  --no-cache \
-  -f platform/docker/Dockerfile.ui \
-  -t "${UI_IMAGE}:latest" .
-
+docker build --platform linux/amd64 --no-cache -f platform/docker/Dockerfile.ui -t "${UI_IMAGE}:latest" .
 docker push "${UI_IMAGE}:latest"
-
-gcloud run deploy agentics-sdlc-ui \
-  --image="${UI_IMAGE}:latest" \
-  --region=us-central1 \
-  --project=$PROJECT_ID \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 4Gi \
-  --cpu 2 \
-  --min-instances 1 \
-  --max-instances 10 \
-  --timeout 900 \
-  --session-affinity \
+gcloud run deploy agentics-sdlc-ui --image="${UI_IMAGE}:latest" --region=us-central1 --project=$PROJECT_ID \
+  --platform managed --allow-unauthenticated --memory 4Gi --cpu 2 \
+  --min-instances 1 --max-instances 10 --timeout 900 --session-affinity \
   --set-env-vars "GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=production" \
   --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,CHAINLIT_AUTH_SECRET=chainlit-auth-secret:latest,UI_AUTH_PASSWORD_HASH=ui-auth-password-hash:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest" \
   --project=$PROJECT_ID
-
-# Verify UI
-UI_URL=$(gcloud run services describe agentics-sdlc-ui \
-  --region=us-central1 --format="value(status.url)" --project=$PROJECT_ID)
-curl -f "${UI_URL}/health" && echo "UI OK"
 ```
 
 ---
 
-## 17. LoRA Fine-tuning Pipeline
-
-Fine-tune the Protocol gatekeeper using Vertex AI SFT + LoRA.
+## Terraform Infrastructure
 
 ```bash
-# Interactive notebook for exploration and testing
+cd platform/terraform
+
+# Initialize with remote GCS backend
+terraform init -backend-config="bucket=tf-state-agentics-sdlc"
+
+# Plan
+terraform plan -var="project_id=your-gcp-project"
+
+# Apply
+terraform apply -var="project_id=your-gcp-project"
+```
+
+### External Services Setup
+
+| Service | Configuration |
+|:---|:---|
+| Qdrant Cloud | Create cluster at `cloud.qdrant.io`; store URL + API key as GCP secrets |
+| Supabase | Run `platform/sql/init.sql` in the SQL editor; store URL + key + db-url as GCP secrets |
+| Grafana Cloud | Create stack; configure Prometheus remote-write URL, instance ID, and API key as shell exports |
+
+### Grafana BigQuery Data Source
+
+```bash
+cd platform/terraform
+terraform output -raw grafana_sa_key_base64 | python3 -c "
+import sys, base64; print(base64.b64decode(sys.stdin.read().strip()).decode())
+" > /tmp/grafana-bq-key.json
+cat /tmp/grafana-bq-key.json
+rm /tmp/grafana-bq-key.json
+cd ../..
+```
+
+### BigQuery Scheduled Queries
+
+| KPI | Destination Table |
+|:---|:---|
+| Daily Agent Call Volume | `agentics_sdlc_analytics.kpi_daily_agent_call_volume` |
+| Avg Confidence & Latency per Agent (7d) | `agentics_sdlc_analytics.kpi_avg_confidence_latency` |
+| Low-Confidence Sessions | `agentics_sdlc_analytics.kpi_low_confidence_sessions` |
+
+### Grafana Dashboard Import
+
+Import `observability/grafana/agentics-sdlc-dashboard.json` in Grafana Cloud and select the Prometheus data source.
+
+---
+
+## Production Redeploy CI/CD
+
+| Job | Action | Gate |
+|:---|:---|:---|
+| `quality` | Black, isort, Flake8, Mypy | Blocks `test` on failure |
+| `test` | pytest unit tests, coverage ≥ 70%, Postgres 16 service container | Blocks `build` on failure |
+| `build` | Build + push `agentics-sdlc-api:<sha>` and `agentics-sdlc-ui:<sha>` to GCR | Main branch only |
+| `deploy` | Deploy API then UI to Cloud Run `us-central1`, verify `/health` | Requires `production` environment approval |
+
+### Required GitHub Secrets and Variables
+
+| Key | Type | Value |
+|:---|:---|:---|
+| `GCP_SA_JSON` | Secret | Content of CI/CD service account JSON key |
+| `AGENTICS_SDLC_API_KEY` | Secret | Generated API key from GCP Secret Manager |
+| `GCP_PROJECT_ID` | Variable | `agentics-sdlc` |
+| `QDRANT_URL` | Variable | Qdrant cluster URL |
+
+---
+
+## LoRA Fine-tuning Pipeline
+
+### Pipeline Phases
+
+| Phase | Script / Command | Output |
+|:---|:---|:---|
+| 1 — Generate | `poetry run python -m src.tuning.tuning_generator` | Synthetic training examples (85% compliant, 10% adversarial, 5% edge-case) |
+| 2 — Train | `poetry run python -m src.tuning.tuning_train` | Vertex AI SFT job + deployed LoRA endpoint |
+| 3 — Evaluate | `poetry run python -m src.tuning.tuning_evaluate` | Precision / Recall / F1 (pass threshold: F1 ≥ 0.95) |
+
+### Full Pipeline (Generate → Train → Evaluate)
+
+```bash
+poetry run python -m src.tuning.tuning_generator && \
+poetry run python -m src.tuning.tuning_train && \
+poetry run python -m src.tuning.tuning_evaluate
+```
+
+### Interactive Notebook
+
+```bash
 poetry run jupyter notebook src/tuning/notebook/notebook_exploration.ipynb
 ```
 
-Runs three phases sequentially:
-1. Generate synthetic data (compliant/adversarial/edge-case examples)
-2. Train LoRA adapter on Vertex AI
-3. Evaluate model (F1 score ≥ 0.95 to pass)
+### Hyperparameter Reference
+
+| Parameter | Default | Description |
+|:---|:---|:---|
+| `epochs` | 3 | Number of training passes |
+| `learning_rate_multiplier` | 1.0 | Scales the base learning rate |
+| `adapter_rank` | 4 | LoRA adapter rank (higher = more capacity) |
+| `f1_threshold` | 0.95 | Minimum F1 required for evaluation pass |
+| `train_split` | 0.85 | Fraction of examples used for training |
+
+---
+
+## Conventional Commits Protocol
+
+| Prefix | Meaning | Semantic Version |
+|:---|:---|:---|
+| `feat:` | New feature | MINOR bump |
+| `fix:` | Bug patch | PATCH bump |
+| `docs:` | Documentation only | — |
+| `style:` | Whitespace / formatting, no logic change | — |
+| `refactor:` | Code restructure without API or behavior change | — |
+| `test:` | Add or correct tests | — |
+| `chore:` | Maintenance, dependency updates, build process | — |
+| `perf:` | Performance improvement | PATCH bump |
+| `ci:` | CI/CD pipeline changes | — |

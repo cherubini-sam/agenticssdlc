@@ -48,7 +48,20 @@ class TuningEvaluate:
         self.logger = logging.getLogger(__name__)
 
     async def tuning_evaluate_on_dataset(self, jsonl_path: str = None, gcs_uri: str = None) -> dict:
-        """Evaluate model on validation dataset."""
+        """Evaluate model on validation dataset.
+
+        Args:
+            jsonl_path: Local filesystem path to a JSONL validation file; used
+                when the file exists on disk.
+            gcs_uri: GCS URI to a JSONL validation file; used as fallback when
+                jsonl_path is absent or does not exist.
+
+        Returns:
+            Dict with keys: true_positives, false_positives, false_negatives,
+            precision, recall, f1, evaluated_examples, min_f1_threshold,
+            passes_threshold. Returns an error status dict when no endpoint
+            is configured.
+        """
 
         if not self.model_client:
             self.logger.error(TUNING_LOG_EVALUATE_NO_ENDPOINT)
@@ -151,7 +164,16 @@ class TuningEvaluate:
     def _tuning_evaluate_compute_metrics(
         self, predictions: list[str], ground_truth: list[str]
     ) -> dict:
-        """Compute evaluation metrics."""
+        """Compute precision, recall, and F1 for binary ERROR/GREEN classification.
+
+        Args:
+            predictions: Model-predicted protocol_status values.
+            ground_truth: Ground-truth protocol_status values aligned with predictions.
+
+        Returns:
+            Dict with keys: true_positives, false_positives, false_negatives,
+            precision, recall, f1. All float metrics are in [0.0, 1.0].
+        """
 
         if len(predictions) != len(ground_truth):
             self.logger.warning(TUNING_LOG_EVALUATE_MISMATCH)
@@ -189,7 +211,16 @@ class TuningEvaluate:
 async def tuning_evaluate_tuned_endpoint(
     endpoint_id: str = None, validation_uri: str = None
 ) -> dict:
-    """Evaluate tuned endpoint."""
+    """Evaluate tuned endpoint.
+
+    Args:
+        endpoint_id: Vertex AI endpoint ID of the fine-tuned model; falls back
+            to the value in TuningSettings when None.
+        validation_uri: GCS URI of the JSONL validation file.
+
+    Returns:
+        Evaluation metrics dict as returned by tuning_evaluate_on_dataset.
+    """
 
     evaluator = TuningEvaluate(endpoint_id=endpoint_id)
     return await evaluator.tuning_evaluate_on_dataset(gcs_uri=validation_uri)

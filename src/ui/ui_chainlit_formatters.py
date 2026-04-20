@@ -169,7 +169,16 @@ def ui_chainlit_utils_format_phase_output(
     node_name: str,
     output: dict,
 ) -> str:
-    """Dispatch to the right formatter based on which graph node just finished."""
+    """Dispatch to the right formatter based on which graph node just finished.
+
+    Args:
+        node_name: LangGraph node key (e.g. "protocol", "architect", "review").
+        output: State dict emitted by the completed node.
+
+    Returns:
+        Formatted Markdown string ready for a Chainlit Step, or empty string
+        for unrecognized node names.
+    """
 
     if node_name == "protocol":
         return ui_chainlit_utils_format_protocol_result(output)
@@ -261,7 +270,16 @@ def ui_chainlit_utils_format_agent_trace(messages: list) -> str:
 def ui_chainlit_utils_truncate(
     text: str, max_chars: int = UI_CHAINLIT_UTILS_TRUNCATE_DEFAULT
 ) -> str:
-    """Chop text at max_chars and append an overflow indicator if needed."""
+    """Chop text at max_chars and append an overflow indicator if needed.
+
+    Args:
+        text: Input string to truncate.
+        max_chars: Character limit; defaults to UI_CHAINLIT_UTILS_TRUNCATE_DEFAULT.
+
+    Returns:
+        Original text if within the limit; otherwise the first max_chars
+        characters with an overflow indicator appended.
+    """
 
     if len(text) <= max_chars:
         return text
