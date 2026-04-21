@@ -61,6 +61,12 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
 
 ---
 
+### Video Demo
+
+https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
+
+---
+
 ## 📖 Overview
 
 **Agentics SDLC** is a production-grade, serverless **Multi-Agent System (MAS)** built on **LangGraph**, where each node is a specialist AI agent. You submit a high-level intent — "Build this feature" — and the system coordinates seven specialized agents through a strict 6-phase pipeline to produce production-quality output. Every phase is protocol-enforced: the PROTOCOL agent validates every session at boot, and the REFLECTOR applies a 4-persona confidence audit before any code is executed.
@@ -379,10 +385,6 @@ agenticssdlc/
 ---
 
 ## ✨ Showcase
-
-### Video Demo
-
-https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
 
 ### Screenshots
 
