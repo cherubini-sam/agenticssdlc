@@ -29,6 +29,8 @@ from src.api.api_utils import (
     API_MAIN_LOG_BQ_ERROR,
     API_MAIN_LOG_BQ_START,
     API_MAIN_LOG_CORS_WILDCARD,
+    API_MAIN_LOG_GRAFANA_DISABLED,
+    API_MAIN_LOG_GRAFANA_ENABLED,
     API_MAIN_LOG_READY,
     API_MAIN_LOG_SHUTDOWN,
     API_MAIN_LOG_SUPABASE_ERROR,
@@ -93,6 +95,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
     validate_settings(settings)
+
+    if settings.grafana_prometheus_url:
+        url_host = settings.grafana_prometheus_url.split("//", 1)[-1].split("/", 1)[0]
+        logger.info(API_MAIN_LOG_GRAFANA_ENABLED.format(url_host=url_host))
+    else:
+        logger.warning(API_MAIN_LOG_GRAFANA_DISABLED)
 
     # BigQuery audit logging: skip for the dev sentinel project
     if settings.gcp_project_id and settings.gcp_project_id != API_GCP_PROJECT_DEV_SENTINEL:

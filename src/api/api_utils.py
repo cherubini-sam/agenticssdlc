@@ -156,6 +156,15 @@ API_MAIN_STATUS_ENABLED: str = "enabled"
 API_MAIN_STATUS_DISABLED: str = "disabled (local dev)"
 API_MAIN_LOG_READY: str = "Ready — model: {model}, vector: {vector}, auth: {auth}"
 API_MAIN_LOG_SHUTDOWN: str = "Shutdown complete"
+API_MAIN_LOG_GRAFANA_DISABLED: str = (
+    "Grafana remote-write disabled — GRAFANA_PROMETHEUS_URL is empty. Dashboard panels "
+    "'Active Workflows', 'Live Confidence', and 'Call Rate & Error Rate (Live)' will "
+    "show No data until the variable is configured. See README for setup."
+)
+API_MAIN_LOG_GRAFANA_ENABLED: str = (
+    "Grafana remote-write enabled — pushing to {url_host}. Dashboard panels will "
+    "populate on the next workflow execution."
+)
 
 # Router: Tasks
 

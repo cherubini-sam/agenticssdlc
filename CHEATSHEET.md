@@ -131,6 +131,33 @@ curl -s -D - -X POST http://localhost:8080/api/v1/task \
 curl -s http://localhost:8080/metrics | grep "^agentics_sdlc_" | head -6
 ```
 
+### Enabling the Grafana dashboard locally
+
+The three live panels (`Active Workflows`, `Live Confidence`, `Call Rate & Error Rate (Live)`) require Grafana Cloud remote-write credentials. The `api` service in `docker-compose.yml` forwards them if they are set in `.env`:
+
+```bash
+# .env — uncomment and fill with your tenant values
+GRAFANA_INSTANCE_ID=...
+GRAFANA_API_KEY=glc_...
+GRAFANA_PROMETHEUS_URL=https://prometheus-prod-<n>-prod-<region>.grafana.net/api/prom/push
+```
+
+Restart the container so the new env is picked up (`restart` alone does not re-evaluate env vars):
+
+```bash
+docker compose up -d --force-recreate api
+```
+
+Verify via the startup log — one of these two lines appears:
+
+```bash
+docker compose logs api | grep -i grafana
+# Grafana remote-write enabled — pushing to prometheus-prod-<n>-prod-<region>.grafana.net
+# Grafana remote-write disabled — GRAFANA_PROMETHEUS_URL is empty. …
+```
+
+When disabled, every workflow silently no-ops the push and the dashboard stays at "No data". When enabled, panels populate on the next workflow execution.
+
 ### Start Chainlit UI
 
 ```bash

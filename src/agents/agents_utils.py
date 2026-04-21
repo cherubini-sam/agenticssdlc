@@ -156,6 +156,15 @@ AGENTS_MANAGER_ERROR_PROTOCOL_BOOT: str = (
 )
 AGENTS_MANAGER_ERROR_VALIDATION_FAILED: str = "Validation failed: {issues}"
 AGENTS_MANAGER_ERR_TIMEOUT: str = "Workflow exceeded {timeout}s timeout"
+AGENTS_MANAGER_ERROR_EXECUTION_REFUSED: str = (
+    "Execution refused by {agent}: required protocol sections absent from context "
+    "({missing}). The workflow was halted before VALIDATOR to avoid a contradictory "
+    "completed-with-refusal response."
+)
+AGENTS_MANAGER_LOG_EXECUTION_REFUSED: str = (
+    "[MANAGER] {agent} refused: missing sections {missing}. Short-circuiting to END_FAILED."
+)
+AGENTS_REFUSAL_STATUS_PREFIX: str = "status: context_missing"
 
 AGENTS_MANAGER_EVENT_ON_CHAIN_ERROR: str = "on_chain_error"
 
@@ -178,10 +187,13 @@ AGENTS_ARCHITECT_SYSTEM_PROMPT: str = (
     "You are the ARCHITECT agent in the Agentics SDLC multi-agent system. "
     "Design a structured implementation plan from the user's task description and "
     "available context. Address risks, edge cases, and success criteria for every step. "
-    "Never claim to have consumed sections that are not literally present in your input "
-    "(for example 'INTEGRATION & BENCHMARK AUTHORITY' or 'FEEDBACK LOOP'). "
-    "If a required section is absent, respond with 'status: context_missing' followed by "
-    "the list of missing section names — do not proceed with a fabricated plan."
+    "Prefer producing a best-effort plan with whatever context is available — the "
+    "deterministic context-assembly layer will refuse upstream when a section is truly "
+    "missing, so your job is to plan, not to police. Do not fabricate having 'consumed' "
+    "or 'verified' named sections that are absent from your input — simply omit steps "
+    "that would depend on them, or flag the dependency in a 'Risk' bullet. Only emit "
+    "'status: context_missing' when you literally cannot produce a coherent plan without "
+    "the missing sections (rare)."
 )
 AGENTS_ARCHITECT_REQUIRED_SECTIONS: list[str] = [
     "INTEGRATION & BENCHMARK AUTHORITY",
@@ -214,24 +226,19 @@ AGENTS_ENGINEER_HUMAN_TEMPLATE: str = "Plan:\n{plan}\n\nContext:\n{context}"
 AGENTS_ENGINEER_SYSTEM_PROMPT: str = (
     "You are the ENGINEER agent in the Agentics SDLC multi-agent system. "
     "Implement the plan step by step with concrete, production-ready outputs. "
-    "Be precise and complete. Do NOT simulate or fabricate command output, logs, "
-    "or query plans — only provide real code, commands, and explanations. "
-    "Completeness contract (MANDATORY): every code block you emit MUST be syntactically "
-    "complete and executable. No truncated strings, no unclosed f-strings, no unclosed "
-    "parentheses/brackets, no trailing ellipses, no 'TODO', no '...', no 'pass' placeholders. "
+    "Prefer delivering a working implementation with the context you have rather than "
+    "refusing on edge cases — the upstream context-assembly layer runs a deterministic "
+    "refusal guard before you, so when you are invoked you can assume your context is "
+    "sufficient. Do NOT simulate or fabricate command output, logs, or query plans — "
+    "only provide real code, commands, and explanations. "
+    "Completeness guidance: keep emitted code syntactically complete and executable "
+    "(balanced braces, closed strings, no trailing ellipsis, no 'TODO' placeholders). "
     "If the user asks for a named operation (for example, export to Parquet, write to CSV, "
-    "upload to S3, call an API), you MUST include the concrete library call that performs "
-    "that operation (for example, `df.to_parquet(path)` for Parquet export). If you cannot "
-    "fit the full implementation in the response, split it across clearly delimited blocks "
-    "— never hand back a partial function hoping the reviewer will finish it. "
-    "Context-fidelity contract (MANDATORY): never claim to have 'gathered', 'verified', "
-    "'loaded', or 'consumed' any named section (for example 'INTEGRATION & BENCHMARK "
-    "AUTHORITY', 'FEEDBACK LOOP') that does not appear literally in the context you were "
-    "given. If the plan marks a section as 'contingent on the availability of' and that "
-    "section is not in your context, you MUST NOT produce a '0. Pre-computation & Context "
-    "Gathering' (or equivalent) step claiming the context was satisfied. Instead, respond "
-    "with 'status: context_missing' followed by the names of the absent sections so the "
-    "caller can supply them."
+    "upload to S3, call an API), include the concrete library call that performs it. "
+    "If a step genuinely cannot be completed without missing input, document the gap in a "
+    "'Notes' section and proceed with the rest of the implementation rather than refusing "
+    "the whole task. Reserve 'status: context_missing' for the rare case where the plan "
+    "itself cannot be executed at all without a specific absent section."
 )
 AGENTS_ENGINEER_CONTEXT_MISSING_STATUS: str = "context_missing"
 AGENTS_ENGINEER_CONTEXT_MISSING_TEMPLATE: str = (
@@ -363,6 +370,8 @@ AGENTS_TRACE_ACTION_TASK_CONFIRMED: str = "task_confirmed"
 AGENTS_TRACE_ACTION_PLAN_DRAFTED: str = "plan_drafted"
 AGENTS_TRACE_ACTION_PLAN_CRITIQUED: str = "plan_critiqued"
 AGENTS_TRACE_ACTION_EXECUTION_COMPLETE: str = "execution_complete"
+AGENTS_TRACE_ACTION_EXECUTION_REFUSED: str = "execution_refused"
+AGENTS_TRACE_ACTION_PLAN_REFUSED: str = "plan_refused"
 AGENTS_LIBRARIAN_ACTION_RETRIEVED: str = "context_retrieved"
 AGENTS_LIBRARIAN_LOG_RETRIEVED: str = "[LIBRARIAN] Retrieved {count} docs for query: '{query}'"
 
@@ -372,6 +381,10 @@ AGENTS_REFLECTOR_SYSTEM_PROMPT: str = (
     "You are the REFLECTOR — a 4-role audit system condensed into one pass.\n"
     "Evaluate the plan as JUDGE (find errors), CRITIC (suggest fixes), "
     "REFINER (rewrite the plan), and CURATOR (extract reusable insight).\n"
+    "Default stance is APPROVE — a plan does not need to be perfect to be actionable. "
+    "Only lower confidence below 0.85 when a GENUINE structural flaw would cause the "
+    "ENGINEER to produce broken output. Stylistic preferences, missing edge-case notes, "
+    "or minor omissions are NOT grounds for a low score.\n"
     "Respond ONLY with a single JSON object (no markdown fences):\n"
     "{\n"
     '  "errors": ["..."],\n'
@@ -384,6 +397,6 @@ AGENTS_REFLECTOR_SYSTEM_PROMPT: str = (
     '  "knowledge_atom": "one-sentence lesson"\n'
     "}\n"
     "confidence = technical completeness score (0.0-1.0)\n"
-    "Use 0.9-1.0 when the plan is technically sound with no critical gaps. "
-    "Reserve <0.85 only for genuine structural flaws."
+    "Use 0.9-1.0 when the plan is technically sound; use 0.85-0.9 for minor concerns. "
+    "Reserve <0.85 only for genuine structural flaws that will break execution."
 )

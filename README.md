@@ -323,6 +323,8 @@ flowchart TD
     BQ_TABLE -.->|BQ datasource| DASH
 ```
 
+> See [CHEATSHEET.md → Enabling the Grafana dashboard locally](CHEATSHEET.md#enabling-the-grafana-dashboard-locally) for the three env vars to uncomment in `.env` to light up the live panels.
+
 ---
 
 ## 📁 Directory Structure
