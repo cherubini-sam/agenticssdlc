@@ -38,6 +38,7 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
 
 - [Agentics SDLC](#agentics-sdlc)
   - [Table of Contents](#table-of-contents)
+  - [Video Demo](#video-demo)
   - [📖 Overview](#-overview)
     - [Highlights](#highlights)
   - [🏗️ Architecture Overview](#️-architecture-overview)
@@ -53,7 +54,6 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
   - [📊 Observability Architecture](#-observability-architecture)
   - [📁 Directory Structure](#-directory-structure)
   - [✨ Showcase](#-showcase)
-    - [Video Demo](#video-demo)
     - [Screenshots](#screenshots)
   - [📚 Advanced Documentation](#-advanced-documentation)
   - [🤝 Contributing](#-contributing)
@@ -61,7 +61,7 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
 
 ---
 
-### Video Demo
+## Video Demo
 
 https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
 
