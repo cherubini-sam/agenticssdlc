@@ -15,6 +15,8 @@ from src.api.api_utils import (
     API_ROUTERS_AGENTS_MANAGER,
     API_ROUTERS_AGENTS_STATUS_ERROR,
     API_ROUTERS_AGENTS_STATUS_SUCCESS,
+    API_ROUTERS_TASKS_GAUGE_DELTA_DEC,
+    API_ROUTERS_TASKS_GAUGE_DELTA_INC,
     API_ROUTERS_TASKS_INTERNAL_ERROR,
     API_ROUTERS_TASKS_LOG_AUDIT_FAILED,
     API_ROUTERS_TASKS_LOG_FAILED,
@@ -22,7 +24,7 @@ from src.api.api_utils import (
     API_ROUTERS_TASKS_STATUS_COMPLETED,
     API_ROUTERS_TASKS_STATUS_FAILED,
 )
-from src.api.middleware.api_middleware_observability import ACTIVE_WORKFLOWS, record_metrics
+from src.api.middleware.api_middleware_observability import adjust_active_workflows, record_metrics
 from src.api.schemas.api_schemas_task import (
     ApiSchemasErrorCode,
     ApiSchemasTaskRequest,
@@ -64,7 +66,7 @@ async def api_routers_create_task(
         latency_ms, agent_trace, and optional error.
     """
 
-    ACTIVE_WORKFLOWS.inc()
+    adjust_active_workflows(API_ROUTERS_TASKS_GAUGE_DELTA_INC)
     start = time.perf_counter()
 
     try:
@@ -172,7 +174,7 @@ async def api_routers_create_task(
             created_at=datetime.now(timezone.utc),
         )
     finally:
-        ACTIVE_WORKFLOWS.dec()
+        adjust_active_workflows(API_ROUTERS_TASKS_GAUGE_DELTA_DEC)
 
 
 @router.get("/task/{task_id}")

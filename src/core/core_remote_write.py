@@ -11,11 +11,61 @@ import snappy
 
 from src.core.core_utils import (
     CORE_REMOTE_WRITE_CONTENT_TYPE,
+    CORE_REMOTE_WRITE_FAILURE_KIND_HTTP,
+    CORE_REMOTE_WRITE_FAILURE_KIND_NETWORK,
+    CORE_REMOTE_WRITE_FAILURE_KIND_UNKNOWN,
+    CORE_REMOTE_WRITE_FAILURE_STATUS_CONNECT,
+    CORE_REMOTE_WRITE_FAILURE_STATUS_TIMEOUT,
+    CORE_REMOTE_WRITE_FAILURE_STATUS_UNKNOWN,
     CORE_REMOTE_WRITE_LOG_ERROR,
     CORE_REMOTE_WRITE_TIMEOUT_S,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _record_remote_write_failure(exc: BaseException) -> None:
+    """Classify ``exc`` and increment the ``remote_write_failures_total`` counter.
+
+    Classification:
+        - ``httpx.HTTPStatusError``  -> ``kind=http``,    ``status=<HTTP code>``.
+        - ``httpx.TimeoutException`` -> ``kind=network``, ``status=timeout``.
+        - ``httpx.ConnectError``     -> ``kind=network``, ``status=connect``.
+        - other ``httpx.RequestError`` -> ``kind=network``, ``status=unknown``.
+        - everything else            -> ``kind=unknown``, ``status=unknown``.
+
+    Import of ``record_remote_write_failure`` is deferred to avoid a circular import with
+    ``api_middleware_observability`` at module load time.
+    """
+
+    try:
+        import httpx
+
+        from src.api.middleware.api_middleware_observability import record_remote_write_failure
+
+        if isinstance(exc, httpx.HTTPStatusError):
+            record_remote_write_failure(
+                CORE_REMOTE_WRITE_FAILURE_KIND_HTTP, str(exc.response.status_code)
+            )
+        elif isinstance(exc, httpx.TimeoutException):
+            record_remote_write_failure(
+                CORE_REMOTE_WRITE_FAILURE_KIND_NETWORK, CORE_REMOTE_WRITE_FAILURE_STATUS_TIMEOUT
+            )
+        elif isinstance(exc, httpx.ConnectError):
+            record_remote_write_failure(
+                CORE_REMOTE_WRITE_FAILURE_KIND_NETWORK, CORE_REMOTE_WRITE_FAILURE_STATUS_CONNECT
+            )
+        elif isinstance(exc, httpx.RequestError):
+            record_remote_write_failure(
+                CORE_REMOTE_WRITE_FAILURE_KIND_NETWORK, CORE_REMOTE_WRITE_FAILURE_STATUS_UNKNOWN
+            )
+        else:
+            record_remote_write_failure(
+                CORE_REMOTE_WRITE_FAILURE_KIND_UNKNOWN, CORE_REMOTE_WRITE_FAILURE_STATUS_UNKNOWN
+            )
+    except Exception:
+        # Counter bookkeeping must never mask the original push failure.
+        pass
 
 
 # Hand-rolled protobuf encoder for the Prometheus remote-write wire format.
@@ -204,6 +254,7 @@ async def remote_write_push(
             resp.raise_for_status()
 
     except Exception as exc:
+        _record_remote_write_failure(exc)
         logger.warning(CORE_REMOTE_WRITE_LOG_ERROR, exc)
 
 
@@ -273,6 +324,7 @@ async def _remote_write_gauge(
             )
             resp.raise_for_status()
     except Exception as exc:
+        _record_remote_write_failure(exc)
         logger.warning(CORE_REMOTE_WRITE_LOG_ERROR, exc)
 
 

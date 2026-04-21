@@ -41,6 +41,14 @@ CORE_REMOTE_WRITE_LOG_ERROR: str = "Grafana remote-write failed (non-fatal): %s"
 CORE_REMOTE_WRITE_CONTENT_TYPE: str = "application/x-protobuf"
 CORE_REMOTE_WRITE_PROTO_VERSION: str = "0.1.0"
 
+# Failure classification labels used by record_remote_write_failure
+CORE_REMOTE_WRITE_FAILURE_KIND_HTTP: str = "http"
+CORE_REMOTE_WRITE_FAILURE_KIND_NETWORK: str = "network"
+CORE_REMOTE_WRITE_FAILURE_KIND_UNKNOWN: str = "unknown"
+CORE_REMOTE_WRITE_FAILURE_STATUS_TIMEOUT: str = "timeout"
+CORE_REMOTE_WRITE_FAILURE_STATUS_CONNECT: str = "connect"
+CORE_REMOTE_WRITE_FAILURE_STATUS_UNKNOWN: str = "unknown"
+
 # Chatty third-party loggers we dial down to WARNING
 CORE_LOGGING_NOISY_LOGGERS: list[str] = [
     "httpx",

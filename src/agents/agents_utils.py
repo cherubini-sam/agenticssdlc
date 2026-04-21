@@ -177,7 +177,24 @@ AGENTS_ARCHITECT_HUMAN_TEMPLATE: str = "Task: {task}\n\nContext:\n{context}"
 AGENTS_ARCHITECT_SYSTEM_PROMPT: str = (
     "You are the ARCHITECT agent in the Agentics SDLC multi-agent system. "
     "Design a structured implementation plan from the user's task description and "
-    "available context. Address risks, edge cases, and success criteria for every step."
+    "available context. Address risks, edge cases, and success criteria for every step. "
+    "Never claim to have consumed sections that are not literally present in your input "
+    "(for example 'INTEGRATION & BENCHMARK AUTHORITY' or 'FEEDBACK LOOP'). "
+    "If a required section is absent, respond with 'status: context_missing' followed by "
+    "the list of missing section names — do not proceed with a fabricated plan."
+)
+AGENTS_ARCHITECT_REQUIRED_SECTIONS: list[str] = [
+    "INTEGRATION & BENCHMARK AUTHORITY",
+    "FEEDBACK LOOP",
+]
+AGENTS_ARCHITECT_CONTEXT_MISSING_STATUS: str = "context_missing"
+AGENTS_ARCHITECT_CONTEXT_MISSING_TEMPLATE: str = (
+    "status: {status}\nmissing_sections: {missing}\n"
+    "The ARCHITECT refused to draft a plan because the required protocol sections "
+    "above were not present in the context. Supply them and retry."
+)
+AGENTS_ARCHITECT_LOG_CONTEXT_MISSING: str = (
+    "[ARCHITECT] Refusing to draft: missing required context sections {missing}"
 )
 AGENTS_ENGINEER_AGENT_NAME: str = "ENGINEER"
 AGENTS_ENGINEER_CONTEXT_TRUNCATION: int = 4000
@@ -198,8 +215,39 @@ AGENTS_ENGINEER_SYSTEM_PROMPT: str = (
     "You are the ENGINEER agent in the Agentics SDLC multi-agent system. "
     "Implement the plan step by step with concrete, production-ready outputs. "
     "Be precise and complete. Do NOT simulate or fabricate command output, logs, "
-    "or query plans — only provide real code, commands, and explanations."
+    "or query plans — only provide real code, commands, and explanations. "
+    "Completeness contract (MANDATORY): every code block you emit MUST be syntactically "
+    "complete and executable. No truncated strings, no unclosed f-strings, no unclosed "
+    "parentheses/brackets, no trailing ellipses, no 'TODO', no '...', no 'pass' placeholders. "
+    "If the user asks for a named operation (for example, export to Parquet, write to CSV, "
+    "upload to S3, call an API), you MUST include the concrete library call that performs "
+    "that operation (for example, `df.to_parquet(path)` for Parquet export). If you cannot "
+    "fit the full implementation in the response, split it across clearly delimited blocks "
+    "— never hand back a partial function hoping the reviewer will finish it. "
+    "Context-fidelity contract (MANDATORY): never claim to have 'gathered', 'verified', "
+    "'loaded', or 'consumed' any named section (for example 'INTEGRATION & BENCHMARK "
+    "AUTHORITY', 'FEEDBACK LOOP') that does not appear literally in the context you were "
+    "given. If the plan marks a section as 'contingent on the availability of' and that "
+    "section is not in your context, you MUST NOT produce a '0. Pre-computation & Context "
+    "Gathering' (or equivalent) step claiming the context was satisfied. Instead, respond "
+    "with 'status: context_missing' followed by the names of the absent sections so the "
+    "caller can supply them."
 )
+AGENTS_ENGINEER_CONTEXT_MISSING_STATUS: str = "context_missing"
+AGENTS_ENGINEER_CONTEXT_MISSING_TEMPLATE: str = (
+    "status: {status}\nmissing_sections: {missing}\n"
+    "The ENGINEER refused to execute because the plan depends on the sections above "
+    "but the runtime context does not contain them. Supply the missing sections and "
+    "retry — do not let the model fabricate having gathered them."
+)
+AGENTS_ENGINEER_LOG_CONTEXT_MISSING: str = (
+    "[ENGINEER] Refusing to execute: plan references {missing} but context does not"
+)
+# Protocol-section markers the system treats as fail-closed when referenced by a plan.
+AGENTS_KNOWN_PROTOCOL_SECTIONS: list[str] = [
+    "INTEGRATION & BENCHMARK AUTHORITY",
+    "FEEDBACK LOOP",
+]
 
 # Validator
 
@@ -214,10 +262,26 @@ AGENTS_VALIDATOR_SYSTEM_PROMPT: str = (
     "entirely irrelevant, or contain critical errors that make "
     "the output unusable. Partial implementations, minor omissions, and imperfect "
     "style are NOT grounds for a low score. "
+    "Plan-contingency check (MANDATORY): if the result claims to have consumed named "
+    "sections (e.g. 'INTEGRATION & BENCHMARK AUTHORITY', 'FEEDBACK LOOP', or any section "
+    "the plan marks as 'contingent on the availability of'), verify that those strings "
+    "appear literally in the inputs you were given. If they do not, emit a "
+    "'plan_contingency_violation' issue for each missing section and set verdict to "
+    "'failed'. "
+    "Generated-code completeness check (MANDATORY): if the result contains source code, "
+    "verify it is syntactically complete — balanced parentheses, brackets, and braces; "
+    "closed string and f-string quotes; no trailing ellipsis. If the task asks for a "
+    "named export (e.g. Parquet, CSV, JSON, upload), verify the result contains the "
+    "concrete library call that performs it (for example, `df.to_parquet(` for Parquet "
+    "export, `df.to_csv(` for CSV export). When a required call is absent or a string/"
+    "paren is unclosed, set verdict to 'failed' and emit an 'incomplete_implementation' "
+    "issue describing exactly what is missing. "
     "Respond ONLY in JSON format: "
     '{"verdict": "passed" or "failed", "score": 0.0-1.0, '
     '"issues": ["issue1", ...], "error": null}'
 )
+AGENTS_VALIDATOR_ISSUE_PLAN_CONTINGENCY_VIOLATION: str = "plan_contingency_violation"
+AGENTS_VALIDATOR_ISSUE_INCOMPLETE_IMPLEMENTATION: str = "incomplete_implementation"
 AGENTS_VALIDATOR_VERDICT_PASSED: str = "passed"
 AGENTS_VALIDATOR_VERDICT_FAILED: str = "failed"
 AGENTS_VALIDATOR_LOG_PARSE_FAILED: str = (

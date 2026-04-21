@@ -109,6 +109,17 @@ API_PROMETHEUS_AGENT_CONFIDENCE_LABELS: list[str] = ["agent_name"]
 API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC: str = "agentics_sdlc_active_workflows"
 API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC: str = "In-flight LangGraph workflow count"
 
+# Remote-write failure counter — exposed so silent push failures become visible on the dashboard.
+API_PROMETHEUS_REMOTE_WRITE_FAILURES_METRIC: str = "agentics_sdlc_remote_write_failures_total"
+API_PROMETHEUS_REMOTE_WRITE_FAILURES_DESC: str = (
+    "Grafana remote-write push failures classified by kind and HTTP status"
+)
+API_PROMETHEUS_REMOTE_WRITE_FAILURES_LABELS: list[str] = ["kind", "status"]
+
+# Active-workflow gauge delta constants — used by the router to signal enter/exit.
+API_ROUTERS_TASKS_GAUGE_DELTA_INC: int = 1
+API_ROUTERS_TASKS_GAUGE_DELTA_DEC: int = -1
+
 # Protocol Decision Counter
 API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC: str = "agentics_sdlc_protocol_decisions_total"
 API_PROMETHEUS_PROTOCOL_DECISIONS_DESC: str = "Protocol gatekeeper decisions by status and mode"
