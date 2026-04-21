@@ -11,7 +11,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.agents.agents_utils import AGENTS_PROTOCOL_AGENT_NAME
 from src.api.api_utils import (
     API_HEADER_USER_AGENT,
     API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS,
@@ -42,8 +41,6 @@ from src.api.api_utils import (
     API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC,
 )
-from src.core.core_config import core_config_get_settings as get_settings
-from src.core.core_remote_write import schedule_remote_write, schedule_remote_write_gauge
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +87,10 @@ def record_metrics(
     latency_s: float,
     confidence: float | None = None,
 ) -> None:
-    """Bump counters/histograms locally and optionally push to Grafana Cloud.
+    """Bump counters/histograms in the local Prometheus registry.
 
-    Also fires a remote-write push to Grafana Cloud when the URL is configured
-    in settings.
+    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    out-of-order rejects).
 
     Args:
         agent: Agent name string for label.
@@ -108,22 +105,12 @@ def record_metrics(
     if confidence is not None:
         AGENT_CONFIDENCE.labels(agent_name=agent).set(confidence)
 
-    settings = get_settings()
-    if settings.grafana_prometheus_url:
-        schedule_remote_write(
-            agent=agent,
-            phase=phase,
-            status=status,
-            latency_s=latency_s,
-            confidence=confidence,
-            url=settings.grafana_prometheus_url,
-            instance_id=settings.grafana_instance_id,
-            api_key=settings.grafana_api_key,
-        )
-
 
 def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
-    """Increment protocol decision counter and optionally push to Grafana.
+    """Increment the protocol decision counter in the local registry.
+
+    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    out-of-order rejects).
 
     Args:
         status: Protocol decision status (GREEN/ERROR).
@@ -131,17 +118,6 @@ def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
     """
 
     PROTOCOL_DECISIONS.labels(status=status, gatekeeper_mode=gatekeeper_mode).inc()
-    settings = get_settings()
-    if settings.grafana_prometheus_url:
-        schedule_remote_write(
-            agent=AGENTS_PROTOCOL_AGENT_NAME,
-            phase="0",
-            status=status,
-            latency_s=0.0,
-            url=settings.grafana_prometheus_url,
-            instance_id=settings.grafana_instance_id,
-            api_key=settings.grafana_api_key,
-        )
 
 
 def record_remote_write_failure(kind: str, status: str) -> None:
@@ -156,22 +132,16 @@ def record_remote_write_failure(kind: str, status: str) -> None:
 
 
 def record_active_workflows(value: float) -> None:
-    """Push the in-flight workflow gauge to both local registry and Grafana.
+    """Set the in-flight workflow gauge in the local Prometheus registry.
+
+    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    out-of-order rejects).
 
     Args:
         value: Current count of in-flight workflows to set on the gauge.
     """
 
     ACTIVE_WORKFLOWS.set(value)
-    settings = get_settings()
-    if settings.grafana_prometheus_url:
-        schedule_remote_write_gauge(
-            metric_name="agentics_sdlc_active_workflows",
-            value=value,
-            url=settings.grafana_prometheus_url,
-            instance_id=settings.grafana_instance_id,
-            api_key=settings.grafana_api_key,
-        )
 
 
 class ApiMiddlewareObservability(BaseHTTPMiddleware):

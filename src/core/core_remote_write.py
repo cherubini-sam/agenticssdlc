@@ -17,7 +17,9 @@ from src.core.core_utils import (
     CORE_REMOTE_WRITE_FAILURE_STATUS_CONNECT,
     CORE_REMOTE_WRITE_FAILURE_STATUS_TIMEOUT,
     CORE_REMOTE_WRITE_FAILURE_STATUS_UNKNOWN,
+    CORE_REMOTE_WRITE_JOB_LABEL,
     CORE_REMOTE_WRITE_LOG_ERROR,
+    CORE_REMOTE_WRITE_PROTO_VERSION,
     CORE_REMOTE_WRITE_TIMEOUT_S,
 )
 
@@ -173,6 +175,44 @@ def _build_write_request(metrics: list[dict]) -> bytes:
     return write_request
 
 
+async def _remote_write_send(metrics: list[dict], url: str, instance_id: str, api_key: str) -> None:
+    """Serialize, compress, and POST a list of metric samples to Grafana Cloud.
+
+    Shared transport used by both the heartbeat loop and any residual event-path
+    callers. On any exception the failure classifier is invoked so the
+    ``remote_write_failures_total`` counter continues to increment.
+
+    Args:
+        metrics: List of metric sample dicts with ``labels``, ``value``, and
+            ``ts_ms`` keys. Each ``labels`` dict must include ``__name__``.
+        url: Grafana remote-write endpoint URL.
+        instance_id: Grafana Prometheus instance ID (Basic Auth user).
+        api_key: Grafana API key (Basic Auth password).
+    """
+    try:
+        import httpx  # lazy import - keeps the module testable without httpx installed
+
+        proto_bytes = _build_write_request(metrics)
+        compressed = snappy.compress(proto_bytes)
+
+        async with httpx.AsyncClient(timeout=CORE_REMOTE_WRITE_TIMEOUT_S) as client:
+            resp = await client.post(
+                url,
+                content=compressed,
+                headers={
+                    "Content-Type": CORE_REMOTE_WRITE_CONTENT_TYPE,
+                    "Content-Encoding": "snappy",
+                    "X-Prometheus-Remote-Write-Version": CORE_REMOTE_WRITE_PROTO_VERSION,
+                },
+                auth=(instance_id, api_key),
+            )
+            resp.raise_for_status()
+
+    except Exception as exc:
+        _record_remote_write_failure(exc)
+        logger.warning(CORE_REMOTE_WRITE_LOG_ERROR, exc)
+
+
 async def remote_write_push(
     agent: str,
     phase: str,
@@ -185,8 +225,10 @@ async def remote_write_push(
 ) -> None:
     """Fire-and-forget push of per-task metrics to Grafana Cloud.
 
-    Cloud Run kills in-process counters on cold start, so we push
-    immediately after every task to avoid losing data.
+    Retained for callers outside the heartbeat-covered metric set (e.g. future
+    latency histogram pushes). The four live-panel metrics (``agent_calls_total``,
+    ``agent_confidence``, ``active_workflows``, ``protocol_decisions_total``) are
+    now pushed exclusively by the heartbeat task.
 
     Args:
         agent: Agent name label.
@@ -198,64 +240,48 @@ async def remote_write_push(
         instance_id: Grafana Prometheus instance ID.
         api_key: Grafana API key for Basic Auth.
     """
-    try:
-        import httpx  # lazy import — keeps the module testable without httpx installed
 
-        ts_ms = int(time.time() * 1000)
-        base_labels = {"agent_name": agent, "phase": phase, "job": "agentics-sdlc-api"}
+    ts_ms = int(time.time() * 1000)
+    base_labels = {
+        "agent_name": agent,
+        "phase": phase,
+        "job": CORE_REMOTE_WRITE_JOB_LABEL,
+    }
 
-        metrics: list[dict] = [
+    metrics: list[dict] = [
+        {
+            "labels": {
+                "__name__": "agentics_sdlc_agent_calls_total",
+                "status": status,
+                **base_labels,
+            },
+            "value": 1.0,
+            "ts_ms": ts_ms,
+        },
+        {
+            "labels": {
+                "__name__": "agentics_sdlc_agent_latency_seconds",
+                **base_labels,
+            },
+            "value": latency_s,
+            "ts_ms": ts_ms,
+        },
+    ]
+
+    if confidence is not None:
+        metrics.append(
             {
                 "labels": {
-                    "__name__": "agentics_sdlc_agent_calls_total",
-                    "status": status,
-                    **base_labels,
+                    "__name__": "agentics_sdlc_agent_confidence",
+                    "agent_name": agent,
+                    "job": CORE_REMOTE_WRITE_JOB_LABEL,
                 },
-                "value": 1.0,
+                "value": confidence,
                 "ts_ms": ts_ms,
-            },
-            {
-                "labels": {
-                    "__name__": "agentics_sdlc_agent_latency_seconds",
-                    **base_labels,
-                },
-                "value": latency_s,
-                "ts_ms": ts_ms,
-            },
-        ]
+            }
+        )
 
-        if confidence is not None:
-            metrics.append(
-                {
-                    "labels": {
-                        "__name__": "agentics_sdlc_agent_confidence",
-                        "agent_name": agent,
-                        "job": "agentics-sdlc-api",
-                    },
-                    "value": confidence,
-                    "ts_ms": ts_ms,
-                }
-            )
-
-        proto_bytes = _build_write_request(metrics)
-        compressed = snappy.compress(proto_bytes)
-
-        async with httpx.AsyncClient(timeout=CORE_REMOTE_WRITE_TIMEOUT_S) as client:
-            resp = await client.post(
-                url,
-                content=compressed,
-                headers={
-                    "Content-Type": CORE_REMOTE_WRITE_CONTENT_TYPE,
-                    "Content-Encoding": "snappy",
-                    "X-Prometheus-Remote-Write-Version": "0.1.0",
-                },
-                auth=(instance_id, api_key),
-            )
-            resp.raise_for_status()
-
-    except Exception as exc:
-        _record_remote_write_failure(exc)
-        logger.warning(CORE_REMOTE_WRITE_LOG_ERROR, exc)
+    await _remote_write_send(metrics, url, instance_id, api_key)
 
 
 def schedule_remote_write(
@@ -295,37 +321,28 @@ def schedule_remote_write(
 async def _remote_write_gauge(
     metric_name: str, value: float, url: str, instance_id: str, api_key: str
 ) -> None:
-    """Push a single gauge sample. Same fire-and-forget pattern as the main push."""
+    """Push a single gauge sample. Delegates to the shared transport.
 
-    try:
-        import httpx
+    Args:
+        metric_name: Prometheus metric name.
+        value: Gauge value to push.
+        url: Grafana remote-write endpoint URL.
+        instance_id: Grafana Prometheus instance ID.
+        api_key: Grafana API key for Basic Auth.
+    """
 
-        ts_ms = int(time.time() * 1000)
-        proto_bytes = _build_write_request(
-            [
-                {
-                    "labels": {"__name__": metric_name, "job": "agentics-sdlc-api"},
-                    "value": value,
-                    "ts_ms": ts_ms,
-                }
-            ]
-        )
-        compressed = snappy.compress(proto_bytes)
-        async with httpx.AsyncClient(timeout=CORE_REMOTE_WRITE_TIMEOUT_S) as client:
-            resp = await client.post(
-                url,
-                content=compressed,
-                headers={
-                    "Content-Type": CORE_REMOTE_WRITE_CONTENT_TYPE,
-                    "Content-Encoding": "snappy",
-                    "X-Prometheus-Remote-Write-Version": "0.1.0",
-                },
-                auth=(instance_id, api_key),
-            )
-            resp.raise_for_status()
-    except Exception as exc:
-        _record_remote_write_failure(exc)
-        logger.warning(CORE_REMOTE_WRITE_LOG_ERROR, exc)
+    ts_ms = int(time.time() * 1000)
+    metrics: list[dict] = [
+        {
+            "labels": {
+                "__name__": metric_name,
+                "job": CORE_REMOTE_WRITE_JOB_LABEL,
+            },
+            "value": value,
+            "ts_ms": ts_ms,
+        }
+    ]
+    await _remote_write_send(metrics, url, instance_id, api_key)
 
 
 def schedule_remote_write_gauge(
