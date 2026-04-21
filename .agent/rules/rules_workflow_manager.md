@@ -33,7 +33,7 @@ P1 Mandate: create or overwrite `task.md` using `resources_task_template.md`. St
 
 #### Phase 1 Tool Whitelist (Law 31)
 
-**Allowed:** `find_by_name`, `view_file`, `write_to_file` (see Active Bootloader for Claude CLI mapping).
+**Allowed:** `find_by_name`, `view_file`, `write_to_file` (see Active Bootloader for AI tool mapping).
 **Banned:** `list_dir`, `grep_search`, `run_command`, `browser`, `read_url`. DENY banned tools; HALT on whitelist violation. Bypass: none.
 
 #### Execution Cycle Atomicity (Law 33)
