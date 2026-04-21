@@ -67,7 +67,7 @@
 
 | Zone | Path | Access |
 | :--- | :--- | :----- |
-| Artifact Sandbox | `.agent/artifacts/` | R/W — task.md, plans, reports |
+| Artifact Sandbox | `.claude/artifacts/` | R/W — task.md, plans, reports |
 | Workspace | `./` | R/W — code, configs, tests |
 | Protocols | `.agent/protocols/` | READ ONLY |
 | Forbidden | `/`, `.git` | BLOCK |
