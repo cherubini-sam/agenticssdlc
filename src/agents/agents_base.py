@@ -34,6 +34,54 @@ class AgentsBase:
         self.llm = get_llm()
         self.logger = logging.getLogger(f"{AGENTS_BASE_LOGGER_PREFIX}{self.agent_name.lower()}")
 
+    @staticmethod
+    def _require_context_sections(context: str, required: list[str]) -> list[str]:
+        """Return the subset of ``required`` section markers missing from ``context``.
+
+        Fail-closed guard used by agents whose prompts assume specific protocol sections
+        (e.g. ``INTEGRATION & BENCHMARK AUTHORITY``, ``FEEDBACK LOOP``) are present. When
+        the caller finds the returned list non-empty, it MUST short-circuit instead of
+        invoking the LLM — otherwise the model is free to fabricate having consumed the
+        missing context.
+
+        Args:
+            context: The full context string the agent is about to pass to the LLM.
+            required: Literal section markers that MUST be present verbatim.
+
+        Returns:
+            List of markers that were NOT found in ``context`` (empty = all present).
+        """
+
+        haystack = context or ""
+        return [marker for marker in required if marker not in haystack]
+
+    @staticmethod
+    def _detect_missing_contingent_sections(
+        plan: str, context: str, known_sections: list[str]
+    ) -> list[str]:
+        """Return the subset of ``known_sections`` that the plan depends on but the context lacks.
+
+        A section is considered "plan-depended" when either (a) the plan contains its literal
+        marker, or (b) the plan contains a contingency phrase (``contingent on``, ``requires``,
+        ``depends on``, ``assumes``, ``gather from``) near a marker-like reference. The returned
+        list is the subset that appears in the plan but NOT literally in the context — i.e. the
+        markers a downstream agent would be tempted to hallucinate having consumed.
+
+        Args:
+            plan: The approved plan text that the executor is about to act on.
+            context: The runtime context string that will actually be passed to the LLM.
+            known_sections: Literal section markers the system treats as protocol-critical.
+
+        Returns:
+            List of markers that the plan references but the context does not contain.
+        """
+
+        plan_text = plan or ""
+        ctx_text = context or ""
+        return [
+            marker for marker in known_sections if marker in plan_text and marker not in ctx_text
+        ]
+
     async def _agents_base_call_llm(
         self,
         messages: list[BaseMessage],

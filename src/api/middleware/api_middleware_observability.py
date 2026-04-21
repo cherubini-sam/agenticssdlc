@@ -36,6 +36,9 @@ from src.api.api_utils import (
     API_PROMETHEUS_PROTOCOL_DECISIONS_DESC,
     API_PROMETHEUS_PROTOCOL_DECISIONS_LABELS,
     API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC,
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_DESC,
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_LABELS,
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_METRIC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_DESC,
     API_PROMETHEUS_WORKFLOWS_ACTIVE_METRIC,
 )
@@ -70,6 +73,11 @@ PROTOCOL_DECISIONS = Counter(
     API_PROMETHEUS_PROTOCOL_DECISIONS_METRIC,
     API_PROMETHEUS_PROTOCOL_DECISIONS_DESC,
     API_PROMETHEUS_PROTOCOL_DECISIONS_LABELS,
+)
+REMOTE_WRITE_FAILURES = Counter(
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_METRIC,
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_DESC,
+    API_PROMETHEUS_REMOTE_WRITE_FAILURES_LABELS,
 )
 
 _SKIP_PATHS: frozenset[str] = API_MIDDLEWARE_OBSERVABILITY_SKIP_PATHS
@@ -134,6 +142,17 @@ def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
             instance_id=settings.grafana_instance_id,
             api_key=settings.grafana_api_key,
         )
+
+
+def record_remote_write_failure(kind: str, status: str) -> None:
+    """Record a Grafana remote-write push failure so regressions are observable on the dashboard.
+
+    Args:
+        kind: Failure class (``http``, ``network``, ``unknown``).
+        status: Specific status (HTTP code as string, ``timeout``, ``connect``, ``unknown``).
+    """
+
+    REMOTE_WRITE_FAILURES.labels(kind=kind, status=status).inc()
 
 
 def record_active_workflows(value: float) -> None:
@@ -202,3 +221,22 @@ def get_active_workflow_count() -> int:
         return int(ACTIVE_WORKFLOWS._value.get())
     except Exception:
         return 0
+
+
+def adjust_active_workflows(delta: int) -> int:
+    """Mutate the active-workflow gauge by ``delta`` and push the post-mutation value to Grafana.
+
+    The router used to call ``ACTIVE_WORKFLOWS.inc()``/``.dec()`` directly, which updated the
+    in-process gauge but never triggered a remote-write push — starving the dashboard.
+
+    Args:
+        delta: Signed integer increment (``+1`` on entry, ``-1`` on exit).
+
+    Returns:
+        The post-mutation active-workflow count (never negative).
+    """
+
+    current = get_active_workflow_count()
+    next_value = max(0, current + int(delta))
+    record_active_workflows(next_value)
+    return next_value
