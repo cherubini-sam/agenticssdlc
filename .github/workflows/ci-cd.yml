@@ -185,7 +185,7 @@ jobs:
             --max-instances 10 \
             --timeout 300 \
             --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},BIGQUERY_DATASET=agentics_sdlc_analytics,RATE_LIMIT_RPM=60,MLFLOW_LOCAL=false,ALLOWED_ORIGINS=*,TUNED_PROTOCOL_ENDPOINT_ID=${{ env.TUNED_PROTOCOL_ENDPOINT_ID }}" \
-            --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest"
+            --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,GRAFANA_PROMETHEUS_URL=grafana-prometheus-url:latest,GRAFANA_INSTANCE_ID=grafana-instance-id:latest,GRAFANA_API_KEY=grafana-api-key:latest"
 
       - name: Verify API deployment
         run: |

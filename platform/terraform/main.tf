@@ -41,11 +41,11 @@ resource "google_storage_bucket" "artifacts" {
 # BigQuery: agent telemetry & audit
 
 resource "google_bigquery_dataset" "analytics" {
-  dataset_id                  = var.bigquery_dataset_id
-  project                     = var.project_id
-  location                    = var.region
-  description                 = "Agentics SDLC agent telemetry and audit logs"
-  delete_contents_on_destroy  = false
+  dataset_id                 = var.bigquery_dataset_id
+  project                    = var.project_id
+  location                   = var.region
+  description                = "Agentics SDLC agent telemetry and audit logs"
+  delete_contents_on_destroy = false
 }
 
 resource "google_bigquery_table" "agent_audit_log" {
@@ -63,15 +63,15 @@ resource "google_bigquery_table" "agent_audit_log" {
   clustering = ["agent_name"]
 
   schema = jsonencode([
-    { name = "session_id",   type = "STRING",    mode = "REQUIRED" },
-    { name = "agent_name",   type = "STRING",    mode = "REQUIRED" },
-    { name = "phase",        type = "INTEGER",   mode = "REQUIRED" },
-    { name = "latency_ms",   type = "FLOAT64",   mode = "REQUIRED" },
-    { name = "confidence",   type = "FLOAT64",   mode = "REQUIRED" },
-    { name = "status",       type = "STRING",    mode = "REQUIRED" },
-    { name = "task_content", type = "STRING",    mode = "NULLABLE" },
-    { name = "error",        type = "STRING",    mode = "NULLABLE" },
-    { name = "timestamp",    type = "TIMESTAMP", mode = "REQUIRED" },
+    { name = "session_id", type = "STRING", mode = "REQUIRED" },
+    { name = "agent_name", type = "STRING", mode = "REQUIRED" },
+    { name = "phase", type = "INTEGER", mode = "REQUIRED" },
+    { name = "latency_ms", type = "FLOAT64", mode = "REQUIRED" },
+    { name = "confidence", type = "FLOAT64", mode = "REQUIRED" },
+    { name = "status", type = "STRING", mode = "REQUIRED" },
+    { name = "task_content", type = "STRING", mode = "NULLABLE" },
+    { name = "error", type = "STRING", mode = "NULLABLE" },
+    { name = "timestamp", type = "TIMESTAMP", mode = "REQUIRED" },
   ])
 }
 
@@ -133,6 +133,38 @@ resource "google_secret_manager_secret" "supabase_db_url" {
 
 resource "google_secret_manager_secret" "chainlit_auth_secret" {
   secret_id = "chainlit-auth-secret"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+# Grafana Cloud remote-write credentials — consumed by the api service to push
+# prometheus_client metrics (active_workflows gauge, agent_calls_total counter,
+# agent_confidence gauge) to the live dashboard. Already created out-of-band on
+# 2026-03-24; run `terraform import` to adopt them into state if not yet imported.
+
+resource "google_secret_manager_secret" "grafana_prometheus_url" {
+  secret_id = "grafana-prometheus-url"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "grafana_instance_id" {
+  secret_id = "grafana-instance-id"
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "grafana_api_key" {
+  secret_id = "grafana-api-key"
   project   = var.project_id
 
   replication {

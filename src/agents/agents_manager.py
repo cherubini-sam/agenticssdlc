@@ -16,9 +16,11 @@ from src.agents.agents_architect import AgentsArchitect
 from src.agents.agents_engineer import AgentsEngineer
 from src.agents.agents_librarian import AgentsLibrarian
 from src.agents.agents_protocol import AgentsProtocol
+from src.agents.agents_protocol_sections import AGENTS_PROTOCOL_SECTION_PREAMBLE
 from src.agents.agents_reflector import AgentsReflector
 from src.agents.agents_utils import (
     AGENTS_ARCHITECT_AGENT_NAME,
+    AGENTS_ARCHITECT_REQUIRED_SECTIONS,
     AGENTS_ENGINEER_AGENT_NAME,
     AGENTS_LIBRARIAN_ACTION_RETRIEVED,
     AGENTS_LIBRARIAN_AGENT_NAME,
@@ -37,6 +39,7 @@ from src.agents.agents_utils import (
     AGENTS_MANAGER_ERR_KEYWORD_RESOURCE_EXHAUSTED,
     AGENTS_MANAGER_ERR_KEYWORD_VECTOR,
     AGENTS_MANAGER_ERR_TIMEOUT,
+    AGENTS_MANAGER_ERROR_EXECUTION_REFUSED,
     AGENTS_MANAGER_ERROR_PROTOCOL_BOOT,
     AGENTS_MANAGER_ERROR_VALIDATION_FAILED,
     AGENTS_MANAGER_EVENT_ON_CHAIN_ERROR,
@@ -49,6 +52,7 @@ from src.agents.agents_utils import (
     AGENTS_MANAGER_LOG_DRAFT_START,
     AGENTS_MANAGER_LOG_EXECUTE_DONE,
     AGENTS_MANAGER_LOG_EXECUTE_START,
+    AGENTS_MANAGER_LOG_EXECUTION_REFUSED,
     AGENTS_MANAGER_LOG_FORCE_ACCEPT,
     AGENTS_MANAGER_LOG_FORCE_EXECUTE,
     AGENTS_MANAGER_LOG_PHASE_GENERIC,
@@ -91,10 +95,13 @@ from src.agents.agents_utils import (
     AGENTS_PROTOCOL_BOOT_PHASE,
     AGENTS_PROTOCOL_STATUS_GREEN,
     AGENTS_REFLECTOR_AGENT_NAME,
+    AGENTS_REFUSAL_STATUS_PREFIX,
     AGENTS_TRACE_ACTION_BOOT_VALIDATION,
     AGENTS_TRACE_ACTION_EXECUTION_COMPLETE,
+    AGENTS_TRACE_ACTION_EXECUTION_REFUSED,
     AGENTS_TRACE_ACTION_PLAN_CRITIQUED,
     AGENTS_TRACE_ACTION_PLAN_DRAFTED,
+    AGENTS_TRACE_ACTION_PLAN_REFUSED,
     AGENTS_TRACE_ACTION_TASK_CONFIRMED,
     AGENTS_VALIDATOR_AGENT_NAME,
 )
@@ -111,6 +118,47 @@ from src.storage.storage_utils import STORAGE_GCS_PHASE_RESULT, STORAGE_GCS_PHAS
 logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD: float = AGENTS_MANAGER_CONFIDENCE_THRESHOLD
+
+
+def _agents_manager_is_refusal(text: str | None) -> bool:
+    """Return True when an agent output is a fail-closed refusal, not a real result.
+
+    The ARCHITECT and ENGINEER guards emit a deterministic preamble beginning with
+    ``status: context_missing`` when required protocol sections are absent from the
+    runtime context. The MANAGER must treat those outputs as workflow failures
+    rather than passing them to VALIDATOR as if they were normal results — doing so
+    produces the ``completed + passed`` contradiction that commit 18eeb89's guard was
+    meant to prevent.
+
+    Args:
+        text: Raw agent output to classify.
+
+    Returns:
+        True when the output's leading non-whitespace characters start with the
+        canonical refusal prefix, False otherwise (including ``None`` / empty).
+    """
+
+    if not text:
+        return False
+    return text.lstrip().startswith(AGENTS_REFUSAL_STATUS_PREFIX)
+
+
+def _agents_manager_extract_missing_sections(refusal: str) -> str:
+    """Parse the ``missing_sections: ...`` line from a refusal preamble.
+
+    Args:
+        refusal: Refusal string produced by the ARCHITECT or ENGINEER guard.
+
+    Returns:
+        Comma-separated section markers, or ``"<unknown>"`` when the line is absent
+        or malformed (defensive — the guard always emits this line today).
+    """
+
+    for line in refusal.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("missing_sections:"):
+            return stripped[len("missing_sections:") :].strip() or "<unknown>"
+    return "<unknown>"
 
 
 def _agents_manager_is_plan_approved(critique: dict | None, threshold: float) -> bool:
@@ -266,7 +314,15 @@ async def _agents_manager_librarian_phase(state: AgentsState) -> dict:
     else:
         librarian = AgentsLibrarian()
         docs = await librarian.agents_librarian_retrieve(state["content"])
-        ctx = "\n\n".join(d.page_content for d in docs) if docs else ""
+        retrieved = "\n\n".join(d.page_content for d in docs) if docs else ""
+        # Prepend the canonical protocol-section preamble so the ARCHITECT/ENGINEER
+        # fail-closed guards see the literal section markers. Without this injection
+        # every run refuses because LIBRARIAN never retrieves system-level markers.
+        ctx = (
+            AGENTS_PROTOCOL_SECTION_PREAMBLE + "\n\n" + retrieved
+            if retrieved
+            else (AGENTS_PROTOCOL_SECTION_PREAMBLE)
+        )
         docs_retrieved = len(docs)
         logger.info(AGENTS_MANAGER_LOG_RETRIEVE_DONE.format(count=docs_retrieved))
 
@@ -312,8 +368,36 @@ async def _agents_manager_architect_phase(state: AgentsState) -> dict:
             state["content"],
             state.get("context") or "",
             verbosity=state.get("verbosity") or AGENTS_MANAGER_VERBOSITY_DEFAULT,
+            required_sections=AGENTS_ARCHITECT_REQUIRED_SECTIONS,
         )
         logger.info(AGENTS_MANAGER_LOG_DRAFT_DONE.format(count=len(plan)))
+
+    # Fail-closed short-circuit: the ARCHITECT refused to draft because required
+    # protocol sections were absent from the context. Propagate the refusal as a
+    # workflow error instead of handing a refusal string to the REFLECTOR/ENGINEER.
+    if _agents_manager_is_refusal(plan):
+        missing = _agents_manager_extract_missing_sections(plan)
+        logger.warning(
+            AGENTS_MANAGER_LOG_EXECUTION_REFUSED.format(
+                agent=AGENTS_ARCHITECT_AGENT_NAME, missing=missing
+            )
+        )
+        return {
+            "phase": AGENTS_MANAGER_PHASE_3,
+            "plan": plan,
+            "error": AGENTS_MANAGER_ERROR_EXECUTION_REFUSED.format(
+                agent=AGENTS_ARCHITECT_AGENT_NAME, missing=missing
+            ),
+            "active_agent": AGENTS_ARCHITECT_AGENT_NAME,
+            "messages": [
+                {
+                    "phase": AGENTS_MANAGER_PHASE_3,
+                    "agent": AGENTS_ARCHITECT_AGENT_NAME,
+                    "action": AGENTS_TRACE_ACTION_PLAN_REFUSED,
+                    "missing_sections": missing,
+                }
+            ],
+        }
 
     return {
         "phase": AGENTS_MANAGER_PHASE_3,
@@ -418,6 +502,40 @@ async def _agents_manager_execute_phase(state: AgentsState) -> dict:
         )
     )
 
+    # Fail-closed short-circuit: the ENGINEER refused to execute because the plan
+    # references protocol sections absent from context. Record the refusal as a
+    # workflow error, emit the execution_refused trace (NOT execution_complete),
+    # skip VALIDATOR, and let the post-graph status mapping surface status=failed.
+    if _agents_manager_is_refusal(result):
+        missing = _agents_manager_extract_missing_sections(result)
+        logger.warning(
+            AGENTS_MANAGER_LOG_EXECUTION_REFUSED.format(
+                agent=AGENTS_ENGINEER_AGENT_NAME, missing=missing
+            )
+        )
+        artifact_uri = StorageGcs().storage_gcs_upload_artifact(
+            task_id=state["task_id"],
+            phase=STORAGE_GCS_PHASE_RESULT,
+            content=result,
+        )
+        return {
+            "phase": AGENTS_MANAGER_PHASE_5,
+            "result": result,
+            "artifact_uri": artifact_uri,
+            "error": AGENTS_MANAGER_ERROR_EXECUTION_REFUSED.format(
+                agent=AGENTS_ENGINEER_AGENT_NAME, missing=missing
+            ),
+            "active_agent": AGENTS_ENGINEER_AGENT_NAME,
+            "messages": [
+                {
+                    "phase": AGENTS_MANAGER_PHASE_5,
+                    "agent": AGENTS_ENGINEER_AGENT_NAME,
+                    "action": AGENTS_TRACE_ACTION_EXECUTION_REFUSED,
+                    "missing_sections": missing,
+                }
+            ],
+        }
+
     artifact_uri = StorageGcs().storage_gcs_upload_artifact(
         task_id=state["task_id"],
         phase=STORAGE_GCS_PHASE_RESULT,
@@ -513,6 +631,36 @@ async def _agents_manager_increment_retry(state: AgentsState) -> dict:
     """
 
     return {"retry_count": state["retry_count"] + 1}
+
+
+def _agents_manager_route_after_architect(state: AgentsState) -> str:
+    """Short-circuit to END_FAILED when the ARCHITECT refused; otherwise proceed to REVIEW.
+
+    Args:
+        state: Current AgentsState.
+
+    Returns:
+        LangGraph node name string indicating which node to visit next.
+    """
+
+    if _agents_manager_is_refusal(state.get("plan")):
+        return AGENTS_MANAGER_NODE_END_FAILED
+    return AGENTS_MANAGER_NODE_REVIEW
+
+
+def _agents_manager_route_after_execute(state: AgentsState) -> str:
+    """Short-circuit to END_FAILED when the ENGINEER refused; otherwise proceed to VERIFY.
+
+    Args:
+        state: Current AgentsState.
+
+    Returns:
+        LangGraph node name string indicating which node to visit next.
+    """
+
+    if _agents_manager_is_refusal(state.get("result")):
+        return AGENTS_MANAGER_NODE_END_FAILED
+    return AGENTS_MANAGER_NODE_VERIFY
 
 
 def _agents_manager_route_after_protocol(state: AgentsState) -> str:
@@ -638,7 +786,17 @@ class AgentsManager:
 
         builder.add_edge(AGENTS_MANAGER_NODE_TASK, AGENTS_MANAGER_NODE_LIBRARIAN)
         builder.add_edge(AGENTS_MANAGER_NODE_LIBRARIAN, AGENTS_MANAGER_NODE_ARCHITECT)
-        builder.add_edge(AGENTS_MANAGER_NODE_ARCHITECT, AGENTS_MANAGER_NODE_REVIEW)
+
+        # After architect: short-circuit to END on a fail-closed refusal so REFLECTOR
+        # and downstream phases never see a refusal string as a real plan.
+        builder.add_conditional_edges(
+            AGENTS_MANAGER_NODE_ARCHITECT,
+            _agents_manager_route_after_architect,
+            {
+                AGENTS_MANAGER_NODE_REVIEW: AGENTS_MANAGER_NODE_REVIEW,
+                AGENTS_MANAGER_NODE_END_FAILED: END,
+            },
+        )
 
         # After review: execute if approved, otherwise retry (force-execute after max retries)
         builder.add_conditional_edges(
@@ -650,7 +808,16 @@ class AgentsManager:
             },
         )
 
-        builder.add_edge(AGENTS_MANAGER_NODE_EXECUTE, AGENTS_MANAGER_NODE_VERIFY)
+        # After execute: short-circuit to END on a fail-closed ENGINEER refusal so
+        # VALIDATOR never rubber-stamps a refusal string with a passed verdict.
+        builder.add_conditional_edges(
+            AGENTS_MANAGER_NODE_EXECUTE,
+            _agents_manager_route_after_execute,
+            {
+                AGENTS_MANAGER_NODE_VERIFY: AGENTS_MANAGER_NODE_VERIFY,
+                AGENTS_MANAGER_NODE_END_FAILED: END,
+            },
+        )
 
         # After verify: done if passing, retry or accept-as-is if budget exhausted
         builder.add_conditional_edges(
@@ -758,9 +925,15 @@ class AgentsManager:
 
         has_error = final_state.get("error") is not None
         has_result = final_state.get("result") is not None
+        is_refusal = _agents_manager_is_refusal(
+            final_state.get("result")
+        ) or _agents_manager_is_refusal(final_state.get("plan"))
+        # Refusals carry a result string (the refusal preamble) but MUST surface as
+        # "failed" — otherwise the dashboard shows the contradictory
+        # completed+execution_refused combination.
         status = (
             AGENTS_MANAGER_STATUS_FAILED
-            if has_error and not has_result
+            if (has_error and not has_result) or is_refusal
             else AGENTS_MANAGER_STATUS_COMPLETED
         )
 
@@ -770,7 +943,9 @@ class AgentsManager:
             err_msg = final_state.get("error", "")
             retry_count = final_state.get("retry_count", 0)
             confidence = final_state.get("confidence", 0.0)
-            if (
+            if is_refusal:
+                error_code = ApiSchemasErrorCode.AGENT_EXECUTION_REFUSED
+            elif (
                 AGENTS_MANAGER_ERR_KEYWORD_QUOTA in err_msg.lower()
                 or AGENTS_MANAGER_ERR_KEYWORD_RESOURCE_EXHAUSTED in err_msg
             ):
