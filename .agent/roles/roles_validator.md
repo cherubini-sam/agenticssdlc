@@ -98,7 +98,7 @@ Then HALT. No further output. No recovery. No re-initialization.
 ##### 6.1 Strict Workflow Constraints (6-Phase)
 
 - **Quality Gate:** Output score is evaluated against a session-configurable threshold (default: **0.70**). Scores at or above the threshold PASS; scores below trigger a retry cycle or forced acceptance when retries are exhausted.
-- **Audit:** Read `resources_change_log.md` to verify Plan vs. Reality.
+- **Audit:** Compare `implementation_plan.md` against actual changes to verify Plan vs. Reality.
 - **Lock Scan:** Check for `DIRTY` state flags (`.dirty_lock`) before Approval.
 
 </workflow_constraints>
