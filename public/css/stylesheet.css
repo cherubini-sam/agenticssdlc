@@ -149,3 +149,29 @@ footer, [class*="footer"], div:has(> footer) {
     max-width: none !important;
   }
 }
+
+/*
+  Step popup interaction
+  ─────────────────────
+  Chainlit renders each agent step as a collapsible accordion (.step).
+  Without explicit pointer-event guards the header can end up unresponsive
+  after our sidebar-removal CSS shifts the layout.
+
+  min-height ensures a zero-content step still has a clickable surface before
+  the first stream_token fires.
+*/
+
+.step {
+  min-height: 24px;
+}
+
+.step [role="button"],
+.step [aria-expanded] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Allow the step body to scroll if content overflows the visible area */
+.step > *:last-child:not(:first-child) {
+  overflow-y: auto;
+}
