@@ -9,6 +9,7 @@ from src.agents.agents_utils import (
     AGENTS_REFLECTOR_AGENT_NAME,
     AGENTS_REFLECTOR_CONTEXT_TRUNCATION,
     AGENTS_REFLECTOR_DEFAULT_CONFIDENCE,
+    AGENTS_REFLECTOR_DOC_PATHS,
     AGENTS_REFLECTOR_FAST_CONFIDENCE_THRESHOLD,
     AGENTS_REFLECTOR_HUMAN_TEMPLATE,
     AGENTS_REFLECTOR_JSON_PATTERN,
@@ -23,6 +24,7 @@ class AgentsReflector(AgentsBase):
     """Judge/critic/refiner/curator rolled into a single LLM call when possible."""
 
     agent_name: str = AGENTS_REFLECTOR_AGENT_NAME
+    role_doc_paths: list[str] = AGENTS_REFLECTOR_DOC_PATHS
 
     async def agents_reflector_critique(self, plan: str, context: str, task: str) -> dict:
         """Two-pass audit: fast assessment first, full refinement only if confidence is low.
@@ -47,10 +49,15 @@ class AgentsReflector(AgentsBase):
             plan=plan,
         )
 
+        system = self._agents_base_build_system_prompt(
+            AGENTS_REFLECTOR_SYSTEM_PROMPT,
+            confidence_threshold=str(AGENTS_REFLECTOR_FAST_CONFIDENCE_THRESHOLD),
+        )
+
         # Pass 1: quick assessment; most plans clear this and skip the second call
         raw_initial = await self._agents_base_call_llm(
             [
-                SystemMessage(content=AGENTS_REFLECTOR_SYSTEM_PROMPT),
+                SystemMessage(content=system),
                 HumanMessage(content=human_fast),
             ]
         )

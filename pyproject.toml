@@ -83,3 +83,12 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "def __repr__",
 ]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["snappy", "vertexai.*", "google.cloud.*"]
+ignore_missing_imports = true

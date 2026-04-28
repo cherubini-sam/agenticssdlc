@@ -29,25 +29,26 @@ logger = logging.getLogger(__name__)
 class TuningEvaluate:
     """Compute precision, recall, and F1 for classification gatekeeper."""
 
-    def __init__(self, endpoint_id: str = None, project_id: str = None):
+    def __init__(self, endpoint_id: str | None = None, project_id: str | None = None):
         """Initialize evaluator with tuned endpoint."""
 
         self.settings = tuning_config_settings_get()
         self.endpoint_id = endpoint_id or self.settings.tuned_protocol_endpoint_id
         self.project_id = project_id or self.settings.gcp_project_id
 
+        self.model_client: ChatVertexAI | None = None
         if self.endpoint_id:
             self.model_client = ChatVertexAI(
                 model_name=self.endpoint_id,
                 project=self.project_id,
                 location=self.settings.gcp_region,
             )
-        else:
-            self.model_client = None
 
         self.logger = logging.getLogger(__name__)
 
-    async def tuning_evaluate_on_dataset(self, jsonl_path: str = None, gcs_uri: str = None) -> dict:
+    async def tuning_evaluate_on_dataset(
+        self, jsonl_path: str | None = None, gcs_uri: str | None = None
+    ) -> dict:
         """Evaluate model on validation dataset.
 
         Args:
@@ -106,13 +107,21 @@ class TuningEvaluate:
     async def _tuning_evaluate_invoke_model(self, user_intent: str) -> str:
         """Invoke tuned model."""
 
+        if self.model_client is None:
+            return TUNING_PROTOCOL_STATUS_GREEN
         try:
             response = await self.model_client.ainvoke(user_intent)
 
+            obj: dict
             if isinstance(response, str):
                 obj = json.loads(response)
+            elif hasattr(response, "dict"):
+                obj = response.dict()
+            elif isinstance(response, dict):
+                obj = response
             else:
-                obj = response.dict() if hasattr(response, "dict") else response
+                content = getattr(response, "content", None)
+                obj = json.loads(content) if isinstance(content, str) else {}
 
             return obj.get("protocol_status", TUNING_PROTOCOL_STATUS_GREEN)
         except Exception as e:
@@ -120,7 +129,7 @@ class TuningEvaluate:
             return TUNING_PROTOCOL_STATUS_GREEN
 
     async def _tuning_evaluate_load_dataset(
-        self, jsonl_path: str = None, gcs_uri: str = None
+        self, jsonl_path: str | None = None, gcs_uri: str | None = None
     ) -> list:
         """Load validation dataset."""
 
@@ -209,7 +218,7 @@ class TuningEvaluate:
 
 
 async def tuning_evaluate_tuned_endpoint(
-    endpoint_id: str = None, validation_uri: str = None
+    endpoint_id: str | None = None, validation_uri: str | None = None
 ) -> dict:
     """Evaluate tuned endpoint.
 

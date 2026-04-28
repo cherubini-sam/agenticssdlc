@@ -28,7 +28,7 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--path", default=".agent/", help="Path to scan for .md files (default: .agent/)"
+        "--path", default=".agent/rag/", help="Path to scan for .md files (default: .agent/rag/)"
     )
     parser.add_argument(
         "--reset",

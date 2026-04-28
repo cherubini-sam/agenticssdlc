@@ -18,10 +18,10 @@ RAG_EMBEDDINGS_BATCH_SIZE: int = 64
 
 # Ingestion
 
-# 1000 chars ≈ 250 words — good semantic granularity for paragraph-level retrieval
-RAG_INGESTION_CHUNK_SIZE: int = 1000
-# 200-char overlap (20%) preserves cross-boundary context without excessive duplication
-RAG_INGESTION_CHUNK_OVERLAP: int = 200
+# 2000 chars ≈ 500 tokens — Microsoft Azure benchmark for RAG; sized to BGE-large 512-token ceiling.
+RAG_INGESTION_CHUNK_SIZE: int = 2000
+# 400-char overlap (20%) preserves cross-boundary context without excessive duplication.
+RAG_INGESTION_CHUNK_OVERLAP: int = 400
 
 # Parent directories excluded from knowledge-base ingestion.
 RAG_INGESTION_EXCLUDED_DIRS: frozenset[str] = frozenset({"artifacts"})
@@ -31,9 +31,7 @@ RAG_INGESTION_CATEGORY_MAP: dict[str, str] = {
     "protocols": "protocol",
     "roles": "role",
     "rules": "rule",
-    "shards": "shard",
     "skills": "skill",
-    "artifacts": "artifact",
 }
 
 # Splitting priority: prefer paragraph/line breaks before sub-word splits

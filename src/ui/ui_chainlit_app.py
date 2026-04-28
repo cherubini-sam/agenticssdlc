@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 import uuid
@@ -38,6 +39,8 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_UTILS_STARTERS,
     UI_CHAINLIT_UTILS_TASK_PHASES,
 )
+
+logger = logging.getLogger(__name__)
 
 _active_workflow_count: int = 0
 
@@ -83,7 +86,7 @@ def ui_chainlit_app_auth_callback(_username: str, password: str) -> cl.User | No
 
     pw_hash = os.getenv("UI_AUTH_PASSWORD_HASH", "").strip()
     if not pw_hash:
-        print("[AUTH] UI_AUTH_PASSWORD_HASH is not set — rejecting login")
+        logger.warning("UI_AUTH_PASSWORD_HASH is not set — rejecting login")
         return None
     try:
         if bcrypt.checkpw(password.encode("utf-8"), pw_hash.encode("utf-8")):
@@ -93,7 +96,7 @@ def ui_chainlit_app_auth_callback(_username: str, password: str) -> cl.User | No
                 metadata={"role": "viewer"},
             )
     except Exception as exc:
-        print(f"[AUTH] bcrypt error: {exc!r} | hash_prefix={pw_hash[:10]!r}")
+        logger.exception("bcrypt verification raised: %r", exc)
     return None
 
 
@@ -348,7 +351,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
                 _, label, stype, _ = UI_CHAINLIT_UTILS_PHASE_META[name]
                 step = cl.Step(
                     name=label,
-                    type=stype,
+                    type=stype,  # type: ignore[arg-type]  # widened to str in our PHASE_META table
                     show_input=False,
                 )
                 await step.__aenter__()
@@ -372,7 +375,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
 
             elif kind == "on_chain_end" and name in UI_CHAINLIT_UTILS_GRAPH_NODES:
                 current_node[0] = ""
-                step = open_steps.pop(name, None)
+                step = open_steps.pop(name, None)  # type: ignore[arg-type]
                 if step is None:
                     continue
 
@@ -495,13 +498,13 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
     _active_workflow_count -= 1
     record_active_workflows(max(0, _active_workflow_count))
     latency_ms = (time.monotonic() - start_time) * 1000
-    status = "failed" if running.get("error") else "completed"
+    final_status: str = "failed" if running.get("error") else "completed"
     confidence = float(running.get("confidence", 0.0))
 
     record_metrics(
         agent=AGENTS_MANAGER_AGENT_NAME,
         phase="6",
-        status=status,
+        status=final_status,
         latency_s=latency_ms / 1000.0,
         confidence=confidence if confidence > 0 else None,
     )
@@ -524,7 +527,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
         "# Agentics SDLC Workflow",
         "",
         f"**Task ID:** `{task_id}`  ",
-        f"**Status:** {status}  ",
+        f"**Status:** {final_status}  ",
         f"**Confidence:** {badge} `{confidence:.2f}`  ",
         f"**Phases:** `{phases}`  ",
         f"**Latency:** `{latency_ms:.0f} ms`",
@@ -546,7 +549,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
     phases_str = " > ".join(str(p) for p in phases) if phases else "--"
 
     result_parts: list[str] = [
-        f"**{status.upper()}** | {badge} `{confidence:.2f}`"
+        f"**{final_status.upper()}** | {badge} `{confidence:.2f}`"
         f" | `{latency_ms:.0f} ms` | `#{task_id[:8]}`",
         "",
         f"**Phases executed:** `{phases_str}`",

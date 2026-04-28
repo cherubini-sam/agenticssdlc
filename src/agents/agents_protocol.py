@@ -7,13 +7,17 @@ import logging
 from langchain_core.runnables import RunnableLambda
 from langchain_google_vertexai import ChatVertexAI
 
+from src.agents.agents_base import AgentsBase
 from src.agents.agents_utils import (
+    AGENTS_ARCHITECT_REQUIRED_SECTIONS,
+    AGENTS_KNOWN_PROTOCOL_SECTIONS,
     AGENTS_MANAGER_TELEMETRY_ROUTER,
     AGENTS_PROTOCOL_AGENT_NAME,
     AGENTS_PROTOCOL_BOOT_PHASE,
     AGENTS_PROTOCOL_CONTEXT_SCOPE,
     AGENTS_PROTOCOL_DECISION_ERROR,
     AGENTS_PROTOCOL_DECISION_GREEN,
+    AGENTS_PROTOCOL_DOC_PATHS,
     AGENTS_PROTOCOL_FAIL_CLOSED_VIOLATION,
     AGENTS_PROTOCOL_GATEKEEPER_MODE_HEURISTIC,
     AGENTS_PROTOCOL_GATEKEEPER_MODE_LLM,
@@ -28,6 +32,7 @@ from src.agents.agents_utils import (
     AGENTS_PROTOCOL_LOG_LLM_RESULT,
     AGENTS_PROTOCOL_LOG_NO_ENDPOINT,
     AGENTS_PROTOCOL_MAX_CONTENT_LENGTH,
+    AGENTS_PROTOCOL_SECTION_PREAMBLE,
     AGENTS_PROTOCOL_STATUS_ERROR,
     AGENTS_PROTOCOL_STATUS_GREEN,
     AGENTS_PROTOCOL_THINKING_LEVEL,
@@ -42,10 +47,11 @@ from src.tuning.tuning_config import ProtocolDecision
 logger = logging.getLogger(__name__)
 
 
-class AgentsProtocol:
+class AgentsProtocol(AgentsBase):
     """Multi-layer gatekeeper: structural guard → LLM validation → deterministic fallbacks."""
 
     agent_name: str = AGENTS_PROTOCOL_AGENT_NAME
+    role_doc_paths: list[str] = AGENTS_PROTOCOL_DOC_PATHS
 
     def __init__(self):
         """Initialize protocol agent with optional resilient gatekeeper chain.
@@ -55,7 +61,7 @@ class AgentsProtocol:
         deterministic heuristics for every validation request.
         """
 
-        self.logger = logging.getLogger(self.agent_name)
+        super().__init__()
         settings = core_config_get_settings()
         self._endpoint_id = settings.tuned_protocol_endpoint_id
         self._gatekeeper = (
@@ -84,18 +90,18 @@ class AgentsProtocol:
         )
 
         structured = protocol_llm.with_structured_output(
-            ProtocolDecision, include_raw=False, method="json_schema"
+            ProtocolDecision, include_raw=False, method="json_schema"  # type: ignore[arg-type]
         )
 
         resilient = structured.with_fallbacks(
             fallbacks=[
-                RunnableLambda(self._agents_protocol_legacy_heuristic),
-                RunnableLambda(self._agents_protocol_fail_closed),
+                RunnableLambda(self._agents_protocol_legacy_heuristic),  # type: ignore[arg-type]
+                RunnableLambda(self._agents_protocol_fail_closed),  # type: ignore[arg-type]
             ],
             exceptions_to_handle=(Exception,),
         )
 
-        return resilient
+        return resilient  # type: ignore[return-value]
 
     async def agents_protocol_validate(self, task_id: str, content: str) -> dict:
         """Run structural guard then optional LLM semantic validation via the LCEL chain.
@@ -294,3 +300,21 @@ class AgentsProtocol:
             )
 
         return violations
+
+
+def agents_protocol_sections_validate_preamble() -> list[str]:
+    """Return the subset of required markers NOT present in the canonical preamble.
+
+    Fails the invariant that every section listed in
+    ``AGENTS_ARCHITECT_REQUIRED_SECTIONS`` and ``AGENTS_KNOWN_PROTOCOL_SECTIONS``
+    must be literally present in ``AGENTS_PROTOCOL_SECTION_PREAMBLE``. An empty
+    return list means the preamble satisfies the guards; a non-empty list is a
+    configuration bug and every workflow will refuse until fixed.
+
+    Returns:
+        List of marker strings expected by the guards but absent from the
+        preamble. Empty when the invariant holds.
+    """
+
+    required = set(AGENTS_ARCHITECT_REQUIRED_SECTIONS) | set(AGENTS_KNOWN_PROTOCOL_SECTIONS)
+    return [marker for marker in required if marker not in AGENTS_PROTOCOL_SECTION_PREAMBLE]

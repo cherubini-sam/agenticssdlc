@@ -77,7 +77,7 @@ def _collect_gauge_samples(
         return samples
 
     # Unlabelled metric: value lives directly on the metric object.
-    value = float(metric._value.get())
+    value = float(metric._value.get())  # type: ignore[attr-defined]
     labels = {"__name__": metric_name, **base_labels}
     samples.append({"labels": labels, "value": value, "ts_ms": ts_ms})
     return samples
@@ -114,7 +114,7 @@ def _collect_counter_samples(
         return samples
 
     # Unlabelled counter: value lives directly on the metric object.
-    value = float(metric._value.get())
+    value = float(metric._value.get())  # type: ignore[attr-defined]
     labels = {"__name__": metric_name, **base_labels}
     samples.append({"labels": labels, "value": value, "ts_ms": ts_ms})
     return samples

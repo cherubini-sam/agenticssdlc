@@ -45,7 +45,7 @@ _SPLITTER = RecursiveCharacterTextSplitter(
 )
 
 
-def rag_ingestion_load_knowledge_base(base_path: str = ".agent/") -> list[Document]:
+def rag_ingestion_load_knowledge_base(base_path: str = ".agent/rag/") -> list[Document]:
     """Walk base_path and load every .md file as a Document with category metadata.
 
     Args:
@@ -187,7 +187,7 @@ def rag_ingestion_reset_manifest(path: str = RAG_INGEST_MANIFEST_PATH) -> None:
         logger.info(RAG_LOG_VECTOR_STORE_MANIFEST_DELETED, path)
 
 
-async def rag_ingestion_ingest(vector_store: Any, base_path: str = ".agent/") -> int:
+async def rag_ingestion_ingest(vector_store: Any, base_path: str = ".agent/rag/") -> int:
     """Run the full pipeline: load -> chunk -> deduplicate -> filter new -> embed+store.
 
     Args:

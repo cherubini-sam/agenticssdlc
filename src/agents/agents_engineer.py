@@ -10,6 +10,7 @@ from src.agents.agents_utils import (
     AGENTS_ENGINEER_CONTEXT_MISSING_STATUS,
     AGENTS_ENGINEER_CONTEXT_MISSING_TEMPLATE,
     AGENTS_ENGINEER_CONTEXT_TRUNCATION,
+    AGENTS_ENGINEER_DOC_PATHS,
     AGENTS_ENGINEER_HUMAN_TEMPLATE,
     AGENTS_ENGINEER_LOG_CONTEXT_MISSING,
     AGENTS_ENGINEER_SYSTEM_PROMPT,
@@ -23,6 +24,7 @@ class AgentsEngineer(AgentsBase):
     """Implements the architect's plan step-by-step. Only runs on approved plans."""
 
     agent_name: str = AGENTS_ENGINEER_AGENT_NAME
+    role_doc_paths: list[str] = AGENTS_ENGINEER_DOC_PATHS
 
     async def agents_engineer_execute(
         self,
@@ -61,7 +63,9 @@ class AgentsEngineer(AgentsBase):
                 missing=", ".join(missing),
             )
 
-        system = AGENTS_ENGINEER_SYSTEM_PROMPT + AGENTS_ENGINEER_VERBOSITY_SUFFIX.get(verbosity, "")
+        system = self._agents_base_build_system_prompt(
+            AGENTS_ENGINEER_SYSTEM_PROMPT + AGENTS_ENGINEER_VERBOSITY_SUFFIX.get(verbosity, "")
+        )
         ctx = (context or "")[:AGENTS_ENGINEER_CONTEXT_TRUNCATION]
         human = AGENTS_ENGINEER_HUMAN_TEMPLATE.format(plan=plan, context=ctx)
 

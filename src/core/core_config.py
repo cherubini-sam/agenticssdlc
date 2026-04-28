@@ -113,8 +113,18 @@ def core_config_validate_settings(s: CoreSettings) -> None:
 def core_config_get_settings() -> CoreSettings:
     """Singleton settings — created once, cached for the process lifetime.
 
+    Validates required environment variables on first call; raises immediately when
+    a fail-closed invariant is violated, so the application refuses to boot rather
+    than running with silently broken configuration.
+
     Returns:
         Singleton CoreSettings instance, created once and cached for process lifetime.
+
+    Raises:
+        ValueError: When required configuration is missing (see
+            ``core_config_validate_settings``).
     """
 
-    return CoreSettings()
+    settings = CoreSettings()
+    core_config_validate_settings(settings)
+    return settings

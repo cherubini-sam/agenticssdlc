@@ -7,7 +7,9 @@ A quick-reference guide for local development, deployment, and operational comma
 - [Prerequisites](#prerequisites)
 - [GCP Project Setup](#gcp-project-setup)
 - [Local Development](#local-development)
+- [Agent Knowledge Base Layout](#agent-knowledge-base-layout)
 - [RAG Knowledge Base](#rag-knowledge-base)
+- [Skills Library](#skills-library)
 - [Testing](#testing)
 - [Cloud Run Deployment](#cloud-run-deployment)
 - [Terraform Infrastructure](#terraform-infrastructure)
@@ -170,13 +172,46 @@ poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 
 ---
 
+## Agent Knowledge Base Layout
+
+```
+.agent/
+├── static/                       # Loaded into agent system prompts at init (12 docs)
+│   ├── protocols/                #   core_laws, quality_standards, workflow
+│   ├── roles/                    #   7 role docs
+│   └── rules/                    #   stack, style
+└── rag/                          # Indexed for LIBRARIAN top-k retrieval (10 skills)
+    └── skills/
+```
+
+| Tier | Path | How agents consume it |
+|:---|:---|:---|
+| Static | `.agent/static/` | Concatenated into each agent's system prompt at init via the cached document loader. Every agent baselines on its own role doc plus `protocols_core_laws.md`. |
+| RAG | `.agent/rag/` | Indexed into the vector store. LIBRARIAN runs top-k retrieval at Phase 2 and synthesises the result into the context string. |
+
+Per-agent static bundles:
+
+| Agent | Bundle |
+|:---|:---|
+| PROTOCOL | `roles_protocol` + `protocols_core_laws` + `protocols_workflow` |
+| MANAGER | `roles_manager` + `protocols_core_laws` + `protocols_workflow` |
+| LIBRARIAN | `roles_librarian` + `protocols_core_laws` |
+| ARCHITECT | `roles_architect` + `protocols_core_laws` + `protocols_quality_standards` + `rules_style` + `rules_stack` |
+| REFLECTOR | `roles_reflector` + `protocols_core_laws` + `protocols_quality_standards` |
+| ENGINEER | `roles_engineer` + `protocols_core_laws` + `rules_style` + `rules_stack` |
+| VALIDATOR | `roles_validator` + `protocols_core_laws` + `protocols_quality_standards` |
+
+---
+
 ## RAG Knowledge Base
+
+The ingest target is `.agent/rag/`. The `.agent/static/` tree is loaded directly into agent system prompts and is **not** indexed.
 
 | Command | Action |
 |:---|:---|
-| `poetry run python scripts/scripts_rag.py` | Incremental ingest (skips already-indexed chunks) |
-| `poetry run python scripts/scripts_rag.py --reset` | Full reset: wipe collection + manifest, re-ingest |
-| `poetry run python scripts/scripts_rag.py --path .agent/ --reset` | Target a custom path |
+| `poetry run python scripts/scripts_rag.py` | Incremental ingest of `.agent/rag/` (skips already-indexed chunks) |
+| `poetry run python scripts/scripts_rag.py --reset` | Full reset: wipe collection + manifest, re-ingest `.agent/rag/` |
+| `poetry run python scripts/scripts_rag.py --path .agent/rag/ --reset` | Same as above with explicit path |
 
 ### Re-ingest Against Qdrant Cloud
 
@@ -190,6 +225,27 @@ QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY poetry run python scripts/
 # Full reset (use when chunk params or directory layout changed)
 QDRANT_URL=$QDRANT_URL QDRANT_API_KEY=$QDRANT_API_KEY poetry run python scripts/scripts_rag.py --reset
 ```
+
+---
+
+## Skills Library
+
+`.agent/rag/skills/` ships ten language-agnostic skills covering the full SDLC. Each skill is fully self-contained: one retrieval gives an agent the scope, directional patterns, common failure modes, and required outputs for its domain — no cross-references to other skills or governance documents.
+
+| # | Skill | SDLC Stage | Source |
+|:---|:---|:---|:---|
+| 1 | `skills_architecture_design` | Design | C4 model + ADR |
+| 2 | `skills_api_contract` | Design | RFC 9457, RFC 7396 |
+| 3 | `skills_data_modeling` | Design | Database refactoring |
+| 4 | `skills_code_execution` | Build | NIST SSDF (PW.5, PW.7) |
+| 5 | `skills_test_authoring` | Verify | Cohn test pyramid |
+| 6 | `skills_security_review` | Verify | OWASP SAMM, NIST SSDF |
+| 7 | `skills_performance_profiling` | Verify | Google SRE Ch. 6 |
+| 8 | `skills_observability` | Operate | Google SRE — golden signals + SLO |
+| 9 | `skills_release_engineering` | Deliver | DORA — *Accelerate* |
+| 10 | `skills_documentation` | Communicate | Diátaxis four-mode framework |
+
+Every skill follows the same structure: frontmatter, `## Scope` description, topic sections of directional guidance, common failure modes, and required outputs. Adding an eleventh skill requires retiring an existing one — the library size is fixed at ten by design.
 
 ---
 

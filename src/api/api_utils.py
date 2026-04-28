@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 # Auth middleware
 
 API_HEADER_API_KEY: str = "X-API-Key"
@@ -172,7 +174,7 @@ API_ROUTERS_TASKS_INTERNAL_ERROR: str = "An internal error occurred. Please try 
 API_ROUTERS_TASKS_LOG_AUDIT_FAILED: str = "Audit log failed for task %s: %s"
 API_ROUTERS_TASKS_LOG_FAILED: str = "Task {task_id} failed: {error}"
 API_ROUTERS_TASKS_STATUS_COMPLETED: str = "completed"
-API_ROUTERS_TASKS_STATUS_FAILED: str = "failed"
+API_ROUTERS_TASKS_STATUS_FAILED: Literal["failed"] = "failed"
 API_ROUTERS_TASKS_NOT_FOUND: str = (
     "Task {task_id} not found. Agentics SDLC is stateless — results are returned synchronously."
 )
