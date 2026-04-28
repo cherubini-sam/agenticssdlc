@@ -426,6 +426,17 @@
     }).observe(document.head, { childList: true });
   }
 
+  /* Step popup: repair pointer-events on step headers each DOM tick */
+  function fixStepExpansion() {
+    document.querySelectorAll('.step').forEach(function (step) {
+      var header = step.querySelector('[role="button"]')
+                || step.querySelector('[aria-expanded]');
+      if (!header) return;
+      header.style.setProperty('pointer-events', 'auto', 'important');
+      header.style.setProperty('cursor', 'pointer', 'important');
+    });
+  }
+
   /* Minor tweaks */
   function fixPlaceholder() {
     var ta = document.querySelector('textarea');
@@ -463,6 +474,7 @@
     applyThemeBridge();
     injectSettingsStyles();
     fixSelectDropdown();
+    fixStepExpansion();
   }
 
   var observer = new MutationObserver(runAll);

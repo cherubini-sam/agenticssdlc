@@ -37,6 +37,7 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_UTILS_GRAPH_NODES,
     UI_CHAINLIT_UTILS_PHASE_META,
     UI_CHAINLIT_UTILS_STARTERS,
+    UI_CHAINLIT_UTILS_STEP_INIT_TOKEN,
     UI_CHAINLIT_UTILS_TASK_PHASES,
 )
 
@@ -355,6 +356,9 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
                     show_input=False,
                 )
                 await step.__aenter__()
+                # Force the accordion body non-empty so the expand button is active
+                # immediately. Replaced by step.output at on_chain_end exit.
+                await step.stream_token(UI_CHAINLIT_UTILS_STEP_INIT_TOKEN)
                 open_steps[name] = step
                 current_node[0] = name
                 token_counts[name] = 0

@@ -28,6 +28,12 @@ UI_CHAINLIT_UTILS_TRUNCATE_REUSE_PATTERN: int = 220
 UI_CHAINLIT_UTILS_TRUNCATE_ERROR: int = 300
 UI_CHAINLIT_UTILS_TRUNCATE_RESULT: int = 2_000
 
+# Streamed into every step immediately after __aenter__ so the accordion body is never
+# empty. An empty body makes the React expand button a no-op; "…" forces it into an
+# expandable state from the first render. Replaced by step.output at __aexit__ — never
+# persists to the final closed view.
+UI_CHAINLIT_UTILS_STEP_INIT_TOKEN: str = "…"
+
 # Phase metadata: node_key -> (phase_number, display_label, step_type, avatar_file)
 UI_CHAINLIT_UTILS_PHASE_META: dict[str, tuple[str, str, str, str]] = {
     "protocol": ("1", "PROTOCOL — Boot Validation", "tool", "validator.svg"),
@@ -58,9 +64,9 @@ UI_CHAINLIT_UTILS_STARTERS: list[dict[str, str]] = [
     {
         "label": "Optimize database query",
         "message": (
-            "Analyze a performance bottleneck where filtering the orders table "
-            "by customer_id is too slow. Identify the missing optimization "
-            "and provide the B-tree index creation command."
+            "Filtering the orders table by customer_id and status is slow. "
+            "The table has no indexes beyond the primary key. "
+            "Identify the bottleneck and provide the B-tree CREATE INDEX statement."
         ),
         "icon": "/public/assets/avatars/architect.svg",
     },
