@@ -89,7 +89,7 @@ def record_metrics(
 ) -> None:
     """Bump counters/histograms in the local Prometheus registry.
 
-    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    Remote-write handled by core_heartbeat (single-writer to avoid
     out-of-order rejects).
 
     Args:
@@ -109,7 +109,7 @@ def record_metrics(
 def record_protocol_decision(status: str, gatekeeper_mode: str) -> None:
     """Increment the protocol decision counter in the local registry.
 
-    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    Remote-write handled by core_heartbeat (single-writer to avoid
     out-of-order rejects).
 
     Args:
@@ -134,7 +134,7 @@ def record_remote_write_failure(kind: str, status: str) -> None:
 def record_active_workflows(value: float) -> None:
     """Set the in-flight workflow gauge in the local Prometheus registry.
 
-    Remote-write handled by core_remote_write_heartbeat (single-writer to avoid
+    Remote-write handled by core_heartbeat (single-writer to avoid
     out-of-order rejects).
 
     Args:

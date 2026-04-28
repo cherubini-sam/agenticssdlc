@@ -31,7 +31,7 @@ from src.core.core_utils import (
 logger = logging.getLogger(__name__)
 
 
-def core_remote_write_heartbeat_resolve_instance() -> str:
+def core_heartbeat_resolve_instance() -> str:
     """Return the instance label for pushed series.
 
     Prefers the Cloud Run revision name when present (stable per-revision
@@ -120,7 +120,7 @@ def _collect_counter_samples(
     return samples
 
 
-def core_remote_write_heartbeat_collect(instance: str) -> list[dict]:
+def core_heartbeat_collect(instance: str) -> list[dict]:
     """Snapshot the live-panel metrics from the in-process registry.
 
     Lazy-imports the Prometheus singletons from the middleware module to avoid
@@ -183,7 +183,7 @@ def core_remote_write_heartbeat_collect(instance: str) -> list[dict]:
     return samples
 
 
-async def core_remote_write_heartbeat_run(
+async def core_heartbeat_run(
     url: str,
     instance_id: str,
     api_key: str,
@@ -208,7 +208,7 @@ async def core_remote_write_heartbeat_run(
     try:
         while True:
             try:
-                samples = core_remote_write_heartbeat_collect(instance)
+                samples = core_heartbeat_collect(instance)
                 if samples:
                     await _remote_write_send(samples, url, instance_id, api_key)
             except asyncio.CancelledError:

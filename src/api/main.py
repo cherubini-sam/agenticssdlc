@@ -50,11 +50,8 @@ from src.api.middleware.api_middleware_ratelimit import ApiMiddlewareRateLimit
 from src.api.routers import api_routers_agents, api_routers_health, api_routers_tasks
 from src.core.core_config import core_config_get_settings as get_settings
 from src.core.core_config import core_config_validate_settings as validate_settings
+from src.core.core_heartbeat import core_heartbeat_resolve_instance, core_heartbeat_run
 from src.core.core_logging import core_logging_setup_logging as configure_logging
-from src.core.core_remote_write_heartbeat import (
-    core_remote_write_heartbeat_resolve_instance,
-    core_remote_write_heartbeat_run,
-)
 from src.core.core_utils import CORE_HEARTBEAT_INTERVAL_S, CORE_HEARTBEAT_LOG_PRECONDITION_MISSING
 from src.rag.rag_vector_store import RagVectorStore
 from src.storage.storage_gcs import StorageGcs
@@ -114,9 +111,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         and settings.grafana_instance_id
         and settings.grafana_api_key
     ):
-        instance = core_remote_write_heartbeat_resolve_instance()
+        instance = core_heartbeat_resolve_instance()
         app.state.grafana_heartbeat_task = asyncio.create_task(
-            core_remote_write_heartbeat_run(
+            core_heartbeat_run(
                 settings.grafana_prometheus_url,
                 settings.grafana_instance_id,
                 settings.grafana_api_key,

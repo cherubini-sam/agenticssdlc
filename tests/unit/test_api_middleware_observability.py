@@ -2,7 +2,7 @@
 
 ``record_metrics``, ``record_protocol_decision``, and ``record_active_workflows``
 must update the local Prometheus registry but must NOT schedule any remote-write
-push. The heartbeat task in ``core_remote_write_heartbeat`` owns that path.
+push. The heartbeat task in ``core_heartbeat`` owns that path.
 """
 
 from __future__ import annotations

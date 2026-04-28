@@ -379,7 +379,7 @@ agenticssdlc/
 │   │   ├── core_llm.py                    # Gemini/Vertex AI LLM singleton
 │   │   ├── core_logging.py                # Structured logging setup
 │   │   ├── core_remote_write.py           # Custom protobuf + Snappy Prometheus push
-│   │   ├── core_remote_write_heartbeat.py # Background heartbeat writer keeping live panels populated
+│   │   ├── core_heartbeat.py              # Background heartbeat writer keeping live panels populated
 │   │   └── core_utils.py                  # Shared core constants and helpers
 │   ├── rag/
 │   │   ├── rag_vector_store.py  # Qdrant/ChromaDB factory abstraction

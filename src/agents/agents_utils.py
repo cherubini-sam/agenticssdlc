@@ -373,19 +373,12 @@ AGENTS_PROTOCOL_FAIL_CLOSED_VIOLATION: str = "VIOLATION:PROTOCOL — LLM gatekee
 AGENTS_PROTOCOL_SECTION_PREAMBLE: str = (
     "## INTEGRATION & BENCHMARK AUTHORITY\n"
     "\n"
-    "Canonical source for integration contracts and benchmark targets. The ARCHITECT and "
-    "ENGINEER are authorized to reference this section when the plan requires coordination "
-    "with external systems or a benchmark acceptance criterion. Absence of this marker in "
-    "context indicates a context-assembly regression — do not proceed with a fabricated "
-    "integration plan.\n"
+    "Integration contracts and benchmark acceptance criteria for ARCHITECT/ENGINEER reference.\n"
     "\n"
     "## FEEDBACK LOOP\n"
     "\n"
-    "Canonical source for the validator-to-architect refinement channel. The REFLECTOR's "
-    "critique and the VALIDATOR's verdict feed back into the next retry iteration via the "
-    "``critique.refined_plan`` state field. Absence of this marker in context means the "
-    "refinement channel has not been wired and downstream retries cannot learn from the "
-    "prior cycle.\n"
+    "Validator-to-architect refinement channel; REFLECTOR critique and VALIDATOR verdict "
+    "propagate to the next retry via ``critique.refined_plan``.\n"
 )
 
 # Reflector

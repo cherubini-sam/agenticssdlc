@@ -71,6 +71,7 @@ omit = [
     "src/api/routers/*",
     # Grafana remote-write — requires live Prometheus/Grafana instance
     "src/core/core_remote_write.py",
+    "src/core/core_heartbeat.py",
     # RAG ingestion — requires live vector store (Chroma/Qdrant) connection
     "src/rag/rag_ingestion.py",
     # LoRA Fine-tuning — requires live Vertex AI infrastructure
