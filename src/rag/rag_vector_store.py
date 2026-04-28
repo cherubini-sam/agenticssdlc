@@ -189,7 +189,7 @@ async def rag_vector_store_get_instance() -> RagVectorStore:
     return _instance
 
 
-async def rag_vector_store_reset_and_rebuild(base_path: str = ".agent/") -> int:
+async def rag_vector_store_reset_and_rebuild(base_path: str = ".agent/rag/") -> int:
     """Reset the vector store and ingest manifest, then re-ingest from scratch."""
 
     from src.rag.rag_ingestion import rag_ingestion_ingest, rag_ingestion_reset_manifest

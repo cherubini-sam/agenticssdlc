@@ -51,6 +51,7 @@ A production-grade, serverless Multi-Agent System that orchestrates the Software
     - [Basic Usage](#basic-usage)
   - [🛠️ Technology Stack](#️-technology-stack)
   - [🔍 RAG Pipeline](#-rag-pipeline)
+  - [🧠 Skills Library](#-skills-library)
   - [📊 Observability Architecture](#-observability-architecture)
   - [📁 Directory Structure](#-directory-structure)
   - [✨ Showcase](#-showcase)
@@ -75,8 +76,9 @@ Two independent interfaces run on top of the same LangGraph graph: a **FastAPI**
 
 ### Highlights
 
-- **Protocol Boot Gate:** The PROTOCOL agent validates every incoming request before Phase 2 begins. Violations terminate the session immediately — no task work is ever performed on a violating request.
+- **Protocol Boot Gate:** The PROTOCOL agent validates every incoming request at Phase 0 before any pipeline work begins. Violations terminate the session immediately — no task work is ever performed on a violating request.
 - **Confidence-Gated Retry Loop:** The REFLECTOR runs a 4-persona critique (Judge, Critic, Refiner, Curator). On low confidence, the ARCHITECT receives the refined plan on retry rather than cold re-drafting. Force-execute after max retries guarantees a response.
+- **Two-Tier Knowledge Base:** `.agent/static/` is loaded into each agent's system prompt at init (governance every agent applies on every call); `.agent/rag/` is indexed for LIBRARIAN top-k retrieval (skill knowledge that varies per task). Static loading is deterministic; RAG synthesis bridges cross-cutting context.
 - **RAG Pipeline:** BGE-large embeddings with Qdrant Cloud (HNSW + INT8 scalar quantization) in production; ChromaDB locally. Context is cached in state so retry loops skip re-retrieval.
 - **LoRA Fine-tuning:** Vertex AI SFT pipeline for the Protocol gatekeeper — synthetic data generation, LoRA training, and F1-gated evaluation in three phases.
 - **End-to-End Observability:** Prometheus metrics pushed to Grafana Cloud after every task (solves the Cloud Run counter-reset problem). BigQuery stores per-agent audit logs; Supabase stores workflow snapshots.
@@ -93,8 +95,9 @@ flowchart TD
     API["FastAPI REST API"]
     MW["Auth · RateLimit · Observability"]
     MANAGER["MANAGER"]
-    P1["PROTOCOL — Phase 1 — boot gate"]
-    P2["LIBRARIAN — Phase 2 — RAG retrieval"]
+    P0["PROTOCOL — Phase 0 — boot gate"]
+    P1["MANAGER — Phase 1 — task classification"]
+    P2["LIBRARIAN — Phase 2 — RAG + LLM synthesis"]
     P3["ARCHITECT — Phase 3 — plan draft"]
     P4["REFLECTOR — Phase 4 — confidence audit"]
     P5["ENGINEER — Phase 5 — execute"]
@@ -108,9 +111,10 @@ flowchart TD
 
     UI --> MANAGER
     API --> MW --> MANAGER
-    MANAGER --> P1
-    P1 -->|GREEN| P2
-    P1 -->|VIOLATION| END_FAIL
+    MANAGER --> P0
+    P0 -->|GREEN| P1
+    P0 -->|VIOLATION| END_FAIL
+    P1 --> P2
     P2 --> P3 --> P4
     P4 -->|approved| P5
     P4 -->|rejected + retries left| RETRY
@@ -139,15 +143,16 @@ sequenceDiagram
     participant VALIDATOR
 
     User->>MANAGER: Submit task (content, task_id)
-    MANAGER->>PROTOCOL: Phase 1 - boot validation
+    MANAGER->>PROTOCOL: Phase 0 - boot validation
     PROTOCOL-->>MANAGER: protocol_status = GREEN / VIOLATION
 
     alt VIOLATION
         MANAGER-->>User: Error (session terminated)
     end
 
-    MANAGER->>LIBRARIAN: Phase 2 - RAG context retrieval
-    LIBRARIAN-->>MANAGER: top-k documents (cached on retry)
+    MANAGER->>MANAGER: Phase 1 - LLM task classification
+    MANAGER->>LIBRARIAN: Phase 2 - RAG context retrieval + LLM synthesis
+    LIBRARIAN-->>MANAGER: synthesized context string (cached on retry)
     MANAGER->>ARCHITECT: Phase 3 - draft plan
     ARCHITECT-->>MANAGER: plan (uses REFLECTOR refined_plan on retry)
     MANAGER->>REFLECTOR: Phase 4 - confidence audit
@@ -180,9 +185,9 @@ sequenceDiagram
 
 | Agent         | Phase                    | Role                                                                                                         |
 | :------------ | :----------------------- | :----------------------------------------------------------------------------------------------------------- |
-| **MANAGER**   | Coordinator (all phases) | Central router and orchestrator (active). Builds the StateGraph and dispatches to all agents.                |
-| **PROTOCOL**  | Phase 1 — boot gate      | Boot integrity validator (active). Checks every request before Phase 2; violations terminate immediately.    |
-| **LIBRARIAN** | Phase 2 — context        | Async top-k RAG retrieval. Caches context in state to skip re-retrieval on retry.                            |
+| **MANAGER**   | Coordinator · Phase 1 — task classification | Central router and orchestrator (active). Builds the StateGraph, runs LLM task classification at Phase 1, and dispatches to all agents. |
+| **PROTOCOL**  | Phase 0 — boot gate      | Boot integrity validator (active). Checks every request before Phase 1; violations terminate immediately.    |
+| **LIBRARIAN** | Phase 2 — context        | Top-k RAG retrieval followed by LLM synthesis into a coherent context string. Caches result in state to skip re-retrieval on retry. |
 | **ARCHITECT** | Phase 3 — plan           | Drafts execution plan from task + context. On retry, consumes REFLECTOR's refined plan.                      |
 | **REFLECTOR** | Phase 4 — critique       | 4-persona confidence audit (Judge, Critic, Refiner, Curator). Emits score and refined plan; gates execution. |
 | **ENGINEER**  | Phase 5 — execution      | Executes the approved plan. Receives force-execute after max retries.                                        |
@@ -289,7 +294,8 @@ flowchart LR
     QUERY["User Task (query)"]
     EMBED_Q["embed_query() normalized vector"]
     TOPK["top-k search (k=5, 30s timeout)"]
-    CTX["context → Architect prompt"]
+    SYNTH["LIBRARIAN — LLM synthesis"]
+    CTX["synthesized context string → Architect prompt"]
 
     DOCS --> CHUNK --> EMB
     EMB -->|QDRANT_URL set| QDRANT
@@ -297,8 +303,29 @@ flowchart LR
     QUERY --> EMBED_Q --> TOPK
     QDRANT --> TOPK
     CHROMA --> TOPK
-    TOPK --> CTX
+    TOPK --> SYNTH --> CTX
 ```
+
+---
+
+## 🧠 Skills Library
+
+`.agent/rag/skills/` holds ten language-agnostic skill definitions covering the full SDLC. Each skill is a fully self-contained reference: a single retrieval gives the consuming agent everything it needs for that domain — scope description, directional patterns, required outputs, and common failure modes — without depending on any other skill or governance document. Each skill is grounded in an authoritative source (NIST SSDF, OWASP SAMM, Google SRE, DORA, C4, ADR, RFC 9457, Diátaxis). LIBRARIAN retrieves the most relevant skill at Phase 2 and synthesises it into the context string consumed by downstream agents.
+
+| # | Skill | SDLC Stage | Primary Agents | Authoritative Source | Focus |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | **skills_architecture_design** | Design | ARCHITECT | C4 model + ADR (Nygard) | Decomposition, boundary hygiene, decision records, cross-cutting concerns |
+| 2 | **skills_api_contract** | Design | ARCHITECT, ENGINEER | RFC 9457, RFC 7396 | Resource shape, idempotency, error semantics, versioning |
+| 3 | **skills_data_modeling** | Design | ARCHITECT, ENGINEER | Database refactoring (Ambler) | Schema hygiene, normalisation, constraints, expand→contract migrations |
+| 4 | **skills_code_execution** | Build | ENGINEER, REFLECTOR | NIST SSDF (PW.5, PW.7) | Forbidden patterns, hygiene markers, structural style, complexity |
+| 5 | **skills_test_authoring** | Verify | ENGINEER, VALIDATOR | Cohn test pyramid | Pyramid balance, authoring discipline, coverage targets, determinism |
+| 6 | **skills_security_review** | Verify | REFLECTOR, VALIDATOR | OWASP SAMM, NIST SSDF (PS, PW, RV) | Secrets, injection, authn/authz, supply chain |
+| 7 | **skills_performance_profiling** | Verify | ENGINEER, VALIDATOR | Google SRE Ch. 6 | Baseline, hotspot analysis, targeted optimisation, regression guard |
+| 8 | **skills_observability** | Operate | ENGINEER, VALIDATOR | Google SRE — four golden signals + SLI/SLO | Golden signals, SLI/SLO, telemetry hygiene, sensitive data |
+| 9 | **skills_release_engineering** | Deliver | ENGINEER, VALIDATOR | DORA — *Accelerate*, *State of DevOps* | CI discipline, deployment strategy, rollback safety, DORA metrics |
+| 10 | **skills_documentation** | Communicate | LIBRARIAN, all | Diátaxis four-mode framework | Tutorial / how-to / reference / explanation, doc-as-code, freshness |
+
+Skill structure is uniform across all ten files: frontmatter, `## Scope` description, topic sections of directional guidance, common failure modes, and required outputs. The library divides the SDLC into ten non-overlapping columns, so retrieving one skill never leaves a gap that another skill silently fills, and adding an eleventh skill requires retiring an existing one — the library size is fixed at ten by design.
 
 ---
 
@@ -333,7 +360,7 @@ flowchart TD
 agenticssdlc/
 ├── src/
 │   ├── agents/                  # All 7 agent implementations
-│   │   ├── agents_manager.py    # LangGraph StateGraph orchestrator (Phase 1-6)
+│   │   ├── agents_manager.py    # LangGraph StateGraph orchestrator + Phase 1 task classifier
 │   │   ├── agents_base.py       # Abstract base with exponential backoff LLM calls
 │   │   ├── agents_architect.py  # Plan drafting agent
 │   │   ├── agents_engineer.py   # Code/task execution agent
@@ -348,10 +375,12 @@ agenticssdlc/
 │   │   ├── middleware/          # Auth, RateLimit, Observability
 │   │   └── schemas/             # Pydantic v2 request/response models
 │   ├── core/
-│   │   ├── core_config.py       # Pydantic Settings singleton (lru_cache)
-│   │   ├── core_llm.py          # Gemini/Vertex AI LLM singleton
-│   │   ├── core_logging.py      # Structured logging setup
-│   │   └── core_remote_write.py # Custom protobuf + Snappy Prometheus push
+│   │   ├── core_config.py                 # Pydantic Settings singleton (lru_cache)
+│   │   ├── core_llm.py                    # Gemini/Vertex AI LLM singleton
+│   │   ├── core_logging.py                # Structured logging setup
+│   │   ├── core_remote_write.py           # Custom protobuf + Snappy Prometheus push
+│   │   ├── core_heartbeat.py              # Background heartbeat writer keeping live panels populated
+│   │   └── core_utils.py                  # Shared core constants and helpers
 │   ├── rag/
 │   │   ├── rag_vector_store.py  # Qdrant/ChromaDB factory abstraction
 │   │   ├── rag_embeddings.py    # BGE-large wrapper (lru_cache)
@@ -368,6 +397,9 @@ agenticssdlc/
 │   │   ├── analytics_bigquery_ingest.py   # Non-blocking BQ audit logger
 │   │   ├── analytics_supabase_ingest.py   # Workflow snapshot upserts
 │   │   └── analytics_scheduled_queries.sql
+│   ├── storage/
+│   │   ├── storage_gcs.py                 # Per-task GCS artifact persistence (Engineer + Validator)
+│   │   └── storage_utils.py               # Bucket / path constants and helpers
 │   └── ui/
 │       ├── ui_chainlit_app.py   # Chainlit session/message/streaming handlers
 │       ├── ui_chainlit_formatters.py
@@ -379,7 +411,16 @@ agenticssdlc/
 ├── tests/
 │   ├── unit/                    # Agent and schema unit tests
 │   └── integration/             # API endpoint integration tests
-├── .agent/                      # Agent protocol directory (roles, rules, skills, shards)
+├── .agent/                      # Agent knowledge base (two roots: static + rag)
+│   ├── static/                  # Loaded into agent system prompts at init (12 docs)
+│   │   ├── protocols/           #   core_laws, quality_standards, workflow
+│   │   ├── roles/               #   architect, engineer, librarian, manager, protocol, reflector, validator
+│   │   └── rules/               #   stack, style
+│   └── rag/                     # Indexed for LIBRARIAN top-k retrieval (10 skills)
+│       └── skills/              #   architecture_design, api_contract, data_modeling,
+│                                #   code_execution, test_authoring, security_review,
+│                                #   performance_profiling, observability,
+│                                #   release_engineering, documentation
 ├── pyproject.toml               # Poetry and tool configuration
 └── .pre-commit-config.yaml      # Git hooks
 ```

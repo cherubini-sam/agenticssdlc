@@ -8,15 +8,16 @@ import operator
 from collections.abc import AsyncGenerator
 from typing import Annotated, Any
 
+from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
 from src.agents.agents_architect import AgentsArchitect
+from src.agents.agents_base import AgentsBase
 from src.agents.agents_engineer import AgentsEngineer
 from src.agents.agents_librarian import AgentsLibrarian
 from src.agents.agents_protocol import AgentsProtocol
-from src.agents.agents_protocol_sections import AGENTS_PROTOCOL_SECTION_PREAMBLE
 from src.agents.agents_reflector import AgentsReflector
 from src.agents.agents_utils import (
     AGENTS_ARCHITECT_AGENT_NAME,
@@ -33,6 +34,7 @@ from src.agents.agents_utils import (
     AGENTS_MANAGER_DESC_PHASE_4,
     AGENTS_MANAGER_DESC_PHASE_5,
     AGENTS_MANAGER_DESC_PHASE_6,
+    AGENTS_MANAGER_DOC_PATHS,
     AGENTS_MANAGER_ERR_KEYWORD_CHROMA,
     AGENTS_MANAGER_ERR_KEYWORD_QDRANT,
     AGENTS_MANAGER_ERR_KEYWORD_QUOTA,
@@ -88,11 +90,13 @@ from src.agents.agents_utils import (
     AGENTS_MANAGER_STATUS_COMPLETED,
     AGENTS_MANAGER_STATUS_FAILED,
     AGENTS_MANAGER_STREAM_VERSION,
+    AGENTS_MANAGER_TASK_SYSTEM_PROMPT,
     AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT,
     AGENTS_MANAGER_VERBOSITY_DEFAULT,
     AGENTS_MANAGER_WORKFLOW_TIMEOUT_SECONDS,
     AGENTS_PROTOCOL_AGENT_NAME,
     AGENTS_PROTOCOL_BOOT_PHASE,
+    AGENTS_PROTOCOL_SECTION_PREAMBLE,
     AGENTS_PROTOCOL_STATUS_GREEN,
     AGENTS_REFLECTOR_AGENT_NAME,
     AGENTS_REFUSAL_STATUS_PREFIX,
@@ -118,6 +122,13 @@ from src.storage.storage_utils import STORAGE_GCS_PHASE_RESULT, STORAGE_GCS_PHAS
 logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD: float = AGENTS_MANAGER_CONFIDENCE_THRESHOLD
+
+
+class AgentsManagerClassifier(AgentsBase):
+    """LLM-backed task classifier used in Phase 1 to confirm routing and produce a preview."""
+
+    agent_name: str = AGENTS_MANAGER_AGENT_NAME
+    role_doc_paths: list[str] = AGENTS_MANAGER_DOC_PATHS
 
 
 def _agents_manager_is_refusal(text: str | None) -> bool:
@@ -274,7 +285,23 @@ async def _agents_manager_task_phase(state: AgentsState) -> dict:
             task_id=state["task_id"],
         )
     )
-    task_preview = state["content"][:120]
+
+    import json as _json
+
+    task_preview: str = state["content"][:120]
+    try:
+        mgr = AgentsManagerClassifier()
+        system_prompt: str = mgr._agents_base_build_system_prompt(AGENTS_MANAGER_TASK_SYSTEM_PROMPT)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=state["content"]),
+        ]
+        raw_response: str = await mgr._agents_base_call_llm(messages)
+        parsed: dict = _json.loads(raw_response)
+        task_preview = str(parsed.get("preview", state["content"][:120]))
+    except Exception:
+        task_preview = state["content"][:120]
+
     logger.info(AGENTS_MANAGER_LOG_TASK_CONTENT.format(content=task_preview))
     return {
         "phase": AGENTS_MANAGER_PHASE_1,
@@ -309,22 +336,21 @@ async def _agents_manager_librarian_phase(state: AgentsState) -> dict:
 
     if state.get("context") is not None:
         ctx = state["context"]
-        docs_retrieved = 0
+        has_retrieved = True
         logger.info(AGENTS_MANAGER_LOG_RETRIEVE_REUSE)
     else:
         librarian = AgentsLibrarian()
-        docs = await librarian.agents_librarian_retrieve(state["content"])
-        retrieved = "\n\n".join(d.page_content for d in docs) if docs else ""
+        synthesized: str = await librarian.agents_librarian_retrieve(state["content"])
         # Prepend the canonical protocol-section preamble so the ARCHITECT/ENGINEER
         # fail-closed guards see the literal section markers. Without this injection
         # every run refuses because LIBRARIAN never retrieves system-level markers.
         ctx = (
-            AGENTS_PROTOCOL_SECTION_PREAMBLE + "\n\n" + retrieved
-            if retrieved
-            else (AGENTS_PROTOCOL_SECTION_PREAMBLE)
+            AGENTS_PROTOCOL_SECTION_PREAMBLE + "\n\n" + synthesized
+            if synthesized
+            else AGENTS_PROTOCOL_SECTION_PREAMBLE
         )
-        docs_retrieved = len(docs)
-        logger.info(AGENTS_MANAGER_LOG_RETRIEVE_DONE.format(count=docs_retrieved))
+        has_retrieved = bool(synthesized)
+        logger.info(AGENTS_MANAGER_LOG_RETRIEVE_DONE.format(count=int(has_retrieved)))
 
     return {
         "phase": AGENTS_MANAGER_PHASE_2,
@@ -335,7 +361,7 @@ async def _agents_manager_librarian_phase(state: AgentsState) -> dict:
                 "phase": AGENTS_MANAGER_PHASE_2,
                 "agent": AGENTS_LIBRARIAN_AGENT_NAME,
                 "action": AGENTS_LIBRARIAN_ACTION_RETRIEVED,
-                "docs_retrieved": docs_retrieved,
+                "docs_retrieved": int(has_retrieved),
             }
         ],
     }
@@ -433,7 +459,7 @@ async def _agents_manager_critique_phase(state: AgentsState) -> dict:
 
     reflector = AgentsReflector()
     critique = await reflector.agents_reflector_critique(
-        plan=state["plan"],
+        plan=state["plan"] or "",
         context=state.get("context") or "",
         task=state["content"],
     )
@@ -489,7 +515,7 @@ async def _agents_manager_execute_phase(state: AgentsState) -> dict:
 
     engineer = AgentsEngineer()
     result = await engineer.agents_engineer_execute(
-        state["plan"],
+        state["plan"] or "",
         state.get("context") or "",
         verbosity=state.get("verbosity") or AGENTS_MANAGER_VERBOSITY_DEFAULT,
     )
@@ -867,6 +893,10 @@ class AgentsManager:
             "protocol_status": None,
             "protocol_violations": None,
             "task_preview": None,
+            "confidence_threshold": None,
+            "validator_confidence_threshold": None,
+            "max_retries_override": None,
+            "verbosity": None,
             "artifact_uri": None,
         }
 
@@ -1029,6 +1059,7 @@ class AgentsManager:
             "validator_confidence_threshold": validator_confidence_threshold,
             "max_retries_override": max_retries,
             "verbosity": verbosity or "standard",
+            "artifact_uri": None,
         }
         config = {
             "configurable": {"thread_id": request.task_id},

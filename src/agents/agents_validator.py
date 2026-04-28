@@ -8,9 +8,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.agents_base import AgentsBase
 from src.agents.agents_utils import (
+    AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT,
     AGENTS_REFUSAL_STATUS_PREFIX,
     AGENTS_VALIDATOR_AGENT_NAME,
     AGENTS_VALIDATOR_DEFAULT_SCORE,
+    AGENTS_VALIDATOR_DOC_PATHS,
     AGENTS_VALIDATOR_FALLBACK_SCORE,
     AGENTS_VALIDATOR_HUMAN_TEMPLATE,
     AGENTS_VALIDATOR_JSON_PATTERN,
@@ -33,6 +35,7 @@ class AgentsValidator(AgentsBase):
     """Scores the engineer's output. Default stance is PASS; only hard-fails on critical issues."""
 
     agent_name: str = AGENTS_VALIDATOR_AGENT_NAME
+    role_doc_paths: list[str] = AGENTS_VALIDATOR_DOC_PATHS
 
     async def agents_validator_verify(self, result: str, plan: str, task: str) -> dict:
         """Compare result against plan and task to produce a QA verdict.
@@ -61,7 +64,10 @@ class AgentsValidator(AgentsBase):
                 "error": None,
             }
 
-        system = AGENTS_VALIDATOR_SYSTEM_PROMPT
+        system = self._agents_base_build_system_prompt(
+            AGENTS_VALIDATOR_SYSTEM_PROMPT,
+            score_threshold=str(AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT),
+        )
         human = AGENTS_VALIDATOR_HUMAN_TEMPLATE.format(
             task=task,
             plan=plan[:AGENTS_VALIDATOR_PLAN_TRUNCATION],

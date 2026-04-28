@@ -95,6 +95,8 @@ class ApiMiddlewareRateLimit(BaseHTTPMiddleware):
                 return False, 0, retry_after
 
             bucket.append(now)
+            # Evict empty buckets to prevent unbounded dict growth under many unique clients
+            self._buckets = defaultdict(deque, {k: v for k, v in self._buckets.items() if v})
             return True, self._rpm - len(bucket), 0
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

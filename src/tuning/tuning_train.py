@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class TuningTrain:
     """Submit and monitor LoRA fine-tuning jobs on Vertex AI."""
 
-    def __init__(self, project_id: str = None, region: str = None):
+    def __init__(self, project_id: str | None = None, region: str | None = None):
         """Initialize trainer with Vertex AI configuration."""
 
         self.settings = tuning_config_settings_get()

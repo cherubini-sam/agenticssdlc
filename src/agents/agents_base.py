@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import random
+from functools import lru_cache
+from pathlib import Path
 
 from google.api_core.exceptions import ResourceExhausted
 from langchain_core.messages import BaseMessage
@@ -10,6 +12,7 @@ from langchain_core.messages import BaseMessage
 from src.agents.agents_utils import (
     AGENTS_BASE_BACKOFF_BASE,
     AGENTS_BASE_DEFAULT_MAX_RETRIES,
+    AGENTS_BASE_DOC_BUNDLE_SEPARATOR,
     AGENTS_BASE_ERR_RETRY_EXIT,
     AGENTS_BASE_ERR_TIMEOUT,
     AGENTS_BASE_JITTER_MAX,
@@ -21,18 +24,68 @@ from src.agents.agents_utils import (
     AGENTS_BASE_LOG_TIMEOUT,
     AGENTS_BASE_LOGGER_PREFIX,
     AGENTS_BASE_RATE_LIMIT_ERROR,
+    AGENTS_BASE_ROLE_DOC_SEPARATOR,
+    AGENTS_DOC_LOADER_BASE_PATH,
+    AGENTS_DOC_LOADER_CACHE_MAX_SIZE,
 )
 from src.core.core_llm import core_llm_get_llm as get_llm
+
+
+@lru_cache(maxsize=AGENTS_DOC_LOADER_CACHE_MAX_SIZE)
+def _agents_base_doc_loader_read(relative_path: str) -> str:
+    """Load a .agent/ document by relative path, caching the result.
+
+    :param relative_path: Path relative to the .agent/ directory.
+    :type relative_path: str
+    :return: File contents as a string, or "" if the file cannot be read.
+    :rtype: str
+    """
+    try:
+        return Path(AGENTS_DOC_LOADER_BASE_PATH, relative_path).read_text(encoding="utf-8")
+    except OSError:
+        return ""
 
 
 class AgentsBase:
     """Subclasses set agent_name and get LLM access with built-in retry logic for free."""
 
     agent_name: str
+    role_doc_paths: list[str] = []
 
     def __init__(self) -> None:
         self.llm = get_llm()
         self.logger = logging.getLogger(f"{AGENTS_BASE_LOGGER_PREFIX}{self.agent_name.lower()}")
+        self._role_doc: str = self._agents_base_load_doc_bundle()
+
+    def _agents_base_load_doc_bundle(self) -> str:
+        """Load and concatenate every static doc declared in role_doc_paths.
+
+        :return: Bundle text joined by the doc-bundle separator, or "" when no
+                 paths are declared or all reads fail.
+        :rtype: str
+        """
+
+        if not self.role_doc_paths:
+            return ""
+        parts = [_agents_base_doc_loader_read(path) for path in self.role_doc_paths]
+        return AGENTS_BASE_DOC_BUNDLE_SEPARATOR.join(part for part in parts if part)
+
+    def _agents_base_build_system_prompt(self, base: str, **doc_vars: object) -> str:
+        """Append the agent's role document to the base system prompt.
+
+        :param base: The hardcoded base system prompt for the agent.
+        :param doc_vars: Optional key-value pairs substituted into the role doc via str.replace.
+                         Used to inject runtime constant values (e.g. threshold=0.9).
+        :return: Combined prompt, or base unchanged when no role doc is loaded.
+        :rtype: str
+        """
+
+        doc = self._role_doc
+        for key, value in doc_vars.items():
+            doc = doc.replace(f"{{{key}}}", str(value))
+        if not doc:
+            return base
+        return f"{base}{AGENTS_BASE_ROLE_DOC_SEPARATOR}{doc}"
 
     @staticmethod
     def _require_context_sections(context: str, required: list[str]) -> list[str]:
@@ -110,7 +163,10 @@ class AgentsBase:
                     self.llm.ainvoke(messages),
                     timeout=_timeout,
                 )
-                return response.content
+                content = response.content
+                if isinstance(content, str):
+                    return content
+                return "".join(part if isinstance(part, str) else str(part) for part in content)
             except asyncio.TimeoutError:
                 self.logger.error(
                     AGENTS_BASE_LOG_TIMEOUT.format(

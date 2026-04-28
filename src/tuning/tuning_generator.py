@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 class TuningGenerator:
     """Generate synthetic training data for Protocol gatekeeper fine-tuning."""
 
-    def __init__(self, project_id: str = None, gcs_bucket: str = None):
+    def __init__(self, project_id: str | None = None, gcs_bucket: str | None = None):
         """Initialize generator with GCP and storage configuration."""
 
         self.settings = tuning_config_settings_get()
@@ -170,7 +170,8 @@ class TuningGenerator:
 
         try:
             response = await self.synthesizer.ainvoke(prompt)
-            examples = self._tuning_generator_parse_json_response(response, category)
+            response_text = response.content if hasattr(response, "content") else str(response)
+            examples = self._tuning_generator_parse_json_response(str(response_text), category)
             self.logger.info(
                 TUNING_LOG_GENERATOR_GENERATED.format(count=len(examples), category=category)
             )

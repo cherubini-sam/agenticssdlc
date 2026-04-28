@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Literal
 
 
 def agents_utils_extract_json(raw: str, pattern: str) -> dict | None:
@@ -28,14 +29,6 @@ AGENTS_REFLECTOR_AGENT_NAME: str = "REFLECTOR"
 AGENTS_VALIDATOR_AGENT_NAME: str = "VALIDATOR"
 AGENTS_PROTOCOL_AGENT_NAME: str = "PROTOCOL"
 
-# Architect prompts
-
-AGENTS_ARCHITECT_SYSTEM_PROMPT: str = (
-    "You are the ARCHITECT agent in the Agentics SDLC multi-agent system. "
-    "Produce a numbered implementation plan with clear steps, success criteria, and risks. "
-    "Be specific, actionable, and complete. Format as a structured markdown plan."
-)
-
 # Base LLM retry config
 
 AGENTS_BASE_DEFAULT_MAX_RETRIES: int = 2
@@ -59,6 +52,56 @@ AGENTS_BASE_LOG_LLM_FAIL: str = "[{agent}] LLM call failed: {error}"
 
 AGENTS_BASE_ERR_TIMEOUT: str = "[{agent}] LLM call timed out after {total_attempts} attempts"
 AGENTS_BASE_ERR_RETRY_EXIT: str = "Unexpected retry loop exit"
+
+# Doc loader
+
+AGENTS_DOC_LOADER_BASE_PATH: str = ".agent"
+AGENTS_DOC_LOADER_CACHE_MAX_SIZE: int = 32
+
+# Static doc bundles (relative to .agent/) — loaded at agent init via the doc loader.
+# Every agent baselines on its own role doc plus protocols_core_laws; the bundle
+# inflates from there with the governance the agent applies on every call.
+
+AGENTS_BASE_ROLE_DOC_SEPARATOR: str = "\n\n---\n## GOVERNANCE REFERENCE\n"
+AGENTS_BASE_DOC_BUNDLE_SEPARATOR: str = "\n\n---\n\n"
+
+AGENTS_PROTOCOL_DOC_PATHS: list[str] = [
+    "static/roles/roles_protocol.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/protocols/protocols_workflow.md",
+]
+AGENTS_MANAGER_DOC_PATHS: list[str] = [
+    "static/roles/roles_manager.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/protocols/protocols_workflow.md",
+]
+AGENTS_LIBRARIAN_DOC_PATHS: list[str] = [
+    "static/roles/roles_librarian.md",
+    "static/protocols/protocols_core_laws.md",
+]
+AGENTS_ARCHITECT_DOC_PATHS: list[str] = [
+    "static/roles/roles_architect.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/protocols/protocols_quality_standards.md",
+    "static/rules/rules_style.md",
+    "static/rules/rules_stack.md",
+]
+AGENTS_REFLECTOR_DOC_PATHS: list[str] = [
+    "static/roles/roles_reflector.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/protocols/protocols_quality_standards.md",
+]
+AGENTS_ENGINEER_DOC_PATHS: list[str] = [
+    "static/roles/roles_engineer.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/rules/rules_style.md",
+    "static/rules/rules_stack.md",
+]
+AGENTS_VALIDATOR_DOC_PATHS: list[str] = [
+    "static/roles/roles_validator.md",
+    "static/protocols/protocols_core_laws.md",
+    "static/protocols/protocols_quality_standards.md",
+]
 
 # Manager Phases (Phase 0 = MANAGER internal, Phase 1 = PROTOCOL gateway, Phase 2–6 = pipeline)
 AGENTS_MANAGER_PHASE_0: int = 1
@@ -117,8 +160,8 @@ AGENTS_MANAGER_ERR_KEYWORD_RESOURCE_EXHAUSTED: str = "ResourceExhausted"
 AGENTS_MANAGER_ERR_KEYWORD_VECTOR: str = "vector"
 AGENTS_MANAGER_ERR_KEYWORD_QDRANT: str = "qdrant"
 AGENTS_MANAGER_ERR_KEYWORD_CHROMA: str = "chroma"
-AGENTS_MANAGER_STATUS_FAILED: str = "failed"
-AGENTS_MANAGER_STATUS_COMPLETED: str = "completed"
+AGENTS_MANAGER_STATUS_FAILED: Literal["failed"] = "failed"
+AGENTS_MANAGER_STATUS_COMPLETED: Literal["completed"] = "completed"
 
 # Manager log templates
 
@@ -184,16 +227,14 @@ AGENTS_ARCHITECT_VERBOSITY_SUFFIX: dict[str, str] = {
 }
 AGENTS_ARCHITECT_HUMAN_TEMPLATE: str = "Task: {task}\n\nContext:\n{context}"
 AGENTS_ARCHITECT_SYSTEM_PROMPT: str = (
-    "You are the ARCHITECT agent in the Agentics SDLC multi-agent system. "
-    "Design a structured implementation plan from the user's task description and "
-    "available context. Address risks, edge cases, and success criteria for every step. "
-    "Prefer producing a best-effort plan with whatever context is available — the "
-    "deterministic context-assembly layer will refuse upstream when a section is truly "
-    "missing, so your job is to plan, not to police. Do not fabricate having 'consumed' "
-    "or 'verified' named sections that are absent from your input — simply omit steps "
-    "that would depend on them, or flag the dependency in a 'Risk' bullet. Only emit "
-    "'status: context_missing' when you literally cannot produce a coherent plan without "
-    "the missing sections (rare)."
+    "Produce a structured implementation plan from the task and available context. "
+    "Cover risks, edge cases, and success criteria per step. "
+    "Prefer a best-effort plan with the context you have — the deterministic context-"
+    "assembly layer refuses upstream when a section is truly missing, so plan, do not "
+    "police. Never fabricate having 'consumed' or 'verified' named sections absent from "
+    "your input — omit dependent steps or flag them in a 'Risk' bullet. Emit "
+    "'status: context_missing' only when no coherent plan is possible without the "
+    "missing sections (rare)."
 )
 AGENTS_ARCHITECT_REQUIRED_SECTIONS: list[str] = [
     "INTEGRATION & BENCHMARK AUTHORITY",
@@ -208,7 +249,6 @@ AGENTS_ARCHITECT_CONTEXT_MISSING_TEMPLATE: str = (
 AGENTS_ARCHITECT_LOG_CONTEXT_MISSING: str = (
     "[ARCHITECT] Refusing to draft: missing required context sections {missing}"
 )
-AGENTS_ENGINEER_AGENT_NAME: str = "ENGINEER"
 AGENTS_ENGINEER_CONTEXT_TRUNCATION: int = 4000
 AGENTS_ENGINEER_VERBOSITY_CONCISE: str = (
     " Be concise: provide essential code and key notes only, minimal prose."
@@ -224,21 +264,17 @@ AGENTS_ENGINEER_VERBOSITY_SUFFIX: dict[str, str] = {
 }
 AGENTS_ENGINEER_HUMAN_TEMPLATE: str = "Plan:\n{plan}\n\nContext:\n{context}"
 AGENTS_ENGINEER_SYSTEM_PROMPT: str = (
-    "You are the ENGINEER agent in the Agentics SDLC multi-agent system. "
-    "Implement the plan step by step with concrete, production-ready outputs. "
-    "Prefer delivering a working implementation with the context you have rather than "
-    "refusing on edge cases — the upstream context-assembly layer runs a deterministic "
-    "refusal guard before you, so when you are invoked you can assume your context is "
-    "sufficient. Do NOT simulate or fabricate command output, logs, or query plans — "
-    "only provide real code, commands, and explanations. "
-    "Completeness guidance: keep emitted code syntactically complete and executable "
-    "(balanced braces, closed strings, no trailing ellipsis, no 'TODO' placeholders). "
-    "If the user asks for a named operation (for example, export to Parquet, write to CSV, "
-    "upload to S3, call an API), include the concrete library call that performs it. "
-    "If a step genuinely cannot be completed without missing input, document the gap in a "
-    "'Notes' section and proceed with the rest of the implementation rather than refusing "
-    "the whole task. Reserve 'status: context_missing' for the rare case where the plan "
-    "itself cannot be executed at all without a specific absent section."
+    "Implement the plan with concrete, production-ready outputs. The upstream context-"
+    "assembly layer runs a deterministic refusal guard before you — when invoked you "
+    "may assume context is sufficient. Never simulate or fabricate command output, "
+    "logs, or query plans — provide only real code, commands, and explanations. "
+    "Code must be syntactically complete and executable (balanced braces, closed "
+    "strings, no trailing ellipsis, no 'TODO' placeholders). For a named operation "
+    "(Parquet/CSV export, S3 upload, API call), include the concrete library call "
+    "that performs it. If a step cannot complete without missing input, document the "
+    "gap in 'Notes' and proceed with the rest. Reserve 'status: context_missing' for "
+    "the rare case where the plan cannot execute at all without a specific absent "
+    "section."
 )
 AGENTS_ENGINEER_CONTEXT_MISSING_STATUS: str = "context_missing"
 AGENTS_ENGINEER_CONTEXT_MISSING_TEMPLATE: str = (
@@ -263,27 +299,22 @@ AGENTS_VALIDATOR_RESULT_TRUNCATION: int = 3000
 AGENTS_VALIDATOR_FALLBACK_SCORE: float = 0.85
 AGENTS_VALIDATOR_DEFAULT_SCORE: float = 0.80
 AGENTS_VALIDATOR_SYSTEM_PROMPT: str = (
-    "You are the VALIDATOR agent in the Agentics SDLC multi-agent system. "
-    "Your default stance is PASS. Only fail if the result is empty, completely off-topic, "
-    "or fundamentally broken. Reserve FAILED only for results that are blank, "
-    "entirely irrelevant, or contain critical errors that make "
-    "the output unusable. Partial implementations, minor omissions, and imperfect "
-    "style are NOT grounds for a low score. "
+    "Default stance: PASS. Reserve FAILED for blank, off-topic, or critically broken "
+    "output. Partial implementations, minor omissions, and stylistic imperfections are "
+    "NOT grounds for a low score.\n"
     "Plan-contingency check (MANDATORY): if the result claims to have consumed named "
-    "sections (e.g. 'INTEGRATION & BENCHMARK AUTHORITY', 'FEEDBACK LOOP', or any section "
-    "the plan marks as 'contingent on the availability of'), verify that those strings "
-    "appear literally in the inputs you were given. If they do not, emit a "
-    "'plan_contingency_violation' issue for each missing section and set verdict to "
-    "'failed'. "
-    "Generated-code completeness check (MANDATORY): if the result contains source code, "
-    "verify it is syntactically complete — balanced parentheses, brackets, and braces; "
-    "closed string and f-string quotes; no trailing ellipsis. If the task asks for a "
-    "named export (e.g. Parquet, CSV, JSON, upload), verify the result contains the "
-    "concrete library call that performs it (for example, `df.to_parquet(` for Parquet "
-    "export, `df.to_csv(` for CSV export). When a required call is absent or a string/"
-    "paren is unclosed, set verdict to 'failed' and emit an 'incomplete_implementation' "
-    "issue describing exactly what is missing. "
-    "Respond ONLY in JSON format: "
+    "sections (e.g. 'INTEGRATION & BENCHMARK AUTHORITY', 'FEEDBACK LOOP', or any "
+    "section the plan marks 'contingent on the availability of'), verify those strings "
+    "appear literally in the inputs you were given. If not, emit a "
+    "'plan_contingency_violation' issue per missing section and set verdict to 'failed'.\n"
+    "Generated-code completeness check (MANDATORY): for source code in the result, "
+    "verify syntactic completeness — balanced parens/brackets/braces, closed strings "
+    "and f-strings, no trailing ellipsis. For a named export (Parquet, CSV, JSON, "
+    "upload), verify the concrete library call is present (e.g. `df.to_parquet(`, "
+    "`df.to_csv(`). If a required call is absent or a string/paren is unclosed, set "
+    "verdict to 'failed' and emit an 'incomplete_implementation' issue with the exact "
+    "gap.\n"
+    "Respond ONLY in JSON: "
     '{"verdict": "passed" or "failed", "score": 0.0-1.0, '
     '"issues": ["issue1", ...], "error": null}'
 )
@@ -339,6 +370,17 @@ AGENTS_PROTOCOL_LOG_NO_ENDPOINT: str = (
 )
 AGENTS_PROTOCOL_FAIL_CLOSED_VIOLATION: str = "VIOLATION:PROTOCOL — LLM gatekeeper unavailable"
 
+AGENTS_PROTOCOL_SECTION_PREAMBLE: str = (
+    "## INTEGRATION & BENCHMARK AUTHORITY\n"
+    "\n"
+    "Integration contracts and benchmark acceptance criteria for ARCHITECT/ENGINEER reference.\n"
+    "\n"
+    "## FEEDBACK LOOP\n"
+    "\n"
+    "Validator-to-architect refinement channel; REFLECTOR critique and VALIDATOR verdict "
+    "propagate to the next retry via ``critique.refined_plan``.\n"
+)
+
 # Reflector
 
 AGENTS_REFLECTOR_CONTEXT_TRUNCATION: int = 2000
@@ -374,14 +416,23 @@ AGENTS_TRACE_ACTION_EXECUTION_REFUSED: str = "execution_refused"
 AGENTS_TRACE_ACTION_PLAN_REFUSED: str = "plan_refused"
 AGENTS_LIBRARIAN_ACTION_RETRIEVED: str = "context_retrieved"
 AGENTS_LIBRARIAN_LOG_RETRIEVED: str = "[LIBRARIAN] Retrieved {count} docs for query: '{query}'"
+AGENTS_LIBRARIAN_SYSTEM_PROMPT: str = (
+    "Synthesize the retrieved context documents below into a concise, coherent context "
+    "for downstream agents. Focus on relevant patterns, applicable rules, and "
+    "constraints. Return only the synthesized context as plain text."
+)
+AGENTS_MANAGER_TASK_SYSTEM_PROMPT: str = (
+    "Classify the incoming task and confirm it is ready for pipeline processing. "
+    "Return a single JSON object: "
+    '{"classification": "<type>", "preview": "<one-sentence summary>", "confidence": <0.0-1.0>}'
+)
 
 # Reflector system prompt
 
 AGENTS_REFLECTOR_SYSTEM_PROMPT: str = (
-    "You are the REFLECTOR — a 4-role audit system condensed into one pass.\n"
     "Evaluate the plan as JUDGE (find errors), CRITIC (suggest fixes), "
     "REFINER (rewrite the plan), and CURATOR (extract reusable insight).\n"
-    "Default stance is APPROVE — a plan does not need to be perfect to be actionable. "
+    "Default stance: APPROVE — a plan does not need to be perfect to be actionable. "
     "Only lower confidence below 0.85 when a GENUINE structural flaw would cause the "
     "ENGINEER to produce broken output. Stylistic preferences, missing edge-case notes, "
     "or minor omissions are NOT grounds for a low score.\n"
