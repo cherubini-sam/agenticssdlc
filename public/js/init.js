@@ -426,14 +426,17 @@
     }).observe(document.head, { childList: true });
   }
 
-  /* Step popup: repair pointer-events on step headers each DOM tick */
+  /* Step popup: repair pointer-events on step headers.
+     data-exp-fixed marks steps already processed so this is a no-op on
+     subsequent MutationObserver ticks (avoids O(n) DOM work per streamed token). */
   function fixStepExpansion() {
-    document.querySelectorAll('.step').forEach(function (step) {
+    document.querySelectorAll('.step:not([data-exp-fixed])').forEach(function (step) {
       var header = step.querySelector('[role="button"]')
                 || step.querySelector('[aria-expanded]');
       if (!header) return;
       header.style.setProperty('pointer-events', 'auto', 'important');
       header.style.setProperty('cursor', 'pointer', 'important');
+      step.setAttribute('data-exp-fixed', '1');
     });
   }
 

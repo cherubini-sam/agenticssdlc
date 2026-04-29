@@ -34,10 +34,13 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_APP_DEFAULT_VALIDATOR_THRESHOLD,
     UI_CHAINLIT_APP_DEFAULT_VERBOSITY,
     UI_CHAINLIT_APP_STREAM_TIMEOUT,
+    UI_CHAINLIT_UTILS_EXECUTE_STREAM_CAP,
     UI_CHAINLIT_UTILS_GRAPH_NODES,
+    UI_CHAINLIT_UTILS_NODE_EXECUTE,
     UI_CHAINLIT_UTILS_PHASE_META,
     UI_CHAINLIT_UTILS_STARTERS,
     UI_CHAINLIT_UTILS_STEP_INIT_TOKEN,
+    UI_CHAINLIT_UTILS_STEP_TYPE_LLM,
     UI_CHAINLIT_UTILS_TASK_PHASES,
 )
 
@@ -356,9 +359,11 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
                     show_input=False,
                 )
                 await step.__aenter__()
-                # Force the accordion body non-empty so the expand button is active
-                # immediately. Replaced by step.output at on_chain_end exit.
-                await step.stream_token(UI_CHAINLIT_UTILS_STEP_INIT_TOKEN)
+                # Non-LLM steps never receive on_chat_model_stream tokens, so stream
+                # the init token to force the accordion open immediately. For LLM steps
+                # the first model token serves this role and avoids a "…" prefix on content.
+                if stype != UI_CHAINLIT_UTILS_STEP_TYPE_LLM:
+                    await step.stream_token(UI_CHAINLIT_UTILS_STEP_INIT_TOKEN)
                 open_steps[name] = step
                 current_node[0] = name
                 token_counts[name] = 0
@@ -391,9 +396,17 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
                     else:
                         running[k] = v
 
-                token_counts.pop(name, 0)
+                streamed_tokens = token_counts.pop(name, 0)
                 formatted = ui_chainlit_utils_format_phase_output(name, output)
-                if formatted:
+                # For the execute step: if the LLM streamed a normal-sized result, keep
+                # it — replacing it with a truncated static string shrinks content the
+                # user just watched arrive. If streamed size exceeds the cap, fall back
+                # to the formatter to avoid an OOM crash in the browser tab.
+                _skip_output = (
+                    name == UI_CHAINLIT_UTILS_NODE_EXECUTE
+                    and 0 < streamed_tokens <= UI_CHAINLIT_UTILS_EXECUTE_STREAM_CAP
+                )
+                if formatted and not _skip_output:
                     step.output = formatted
 
                 await step.__aexit__(None, None, None)

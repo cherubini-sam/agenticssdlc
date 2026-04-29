@@ -28,11 +28,24 @@ UI_CHAINLIT_UTILS_TRUNCATE_REUSE_PATTERN: int = 220
 UI_CHAINLIT_UTILS_TRUNCATE_ERROR: int = 300
 UI_CHAINLIT_UTILS_TRUNCATE_RESULT: int = 2_000
 
-# Streamed into every step immediately after __aenter__ so the accordion body is never
-# empty. An empty body makes the React expand button a no-op; "…" forces it into an
-# expandable state from the first render. Replaced by step.output at __aexit__ — never
-# persists to the final closed view.
+# Character count above which the execute step falls back to capped
+# formatter output rather than keeping the raw stream, preventing
+# DOM-size-driven browser crashes on very long LLM responses.
+UI_CHAINLIT_UTILS_EXECUTE_STREAM_CAP: int = 8_000
+
+# Streamed into every non-LLM step immediately after __aenter__ so the
+# accordion body is never empty. An empty body makes the React expand
+# button a no-op; "…" forces it into an expandable state from the first
+# render. Replaced by step.output at __aexit__ — never persists to the
+# final closed view. LLM steps use their first model token instead.
 UI_CHAINLIT_UTILS_STEP_INIT_TOKEN: str = "…"
+
+# Chainlit step type identifier for LLM-streaming steps. Used to gate
+# init-token streaming so the "…" prefix is not prepended to model output.
+UI_CHAINLIT_UTILS_STEP_TYPE_LLM: str = "llm"
+
+# Graph node key for the engineer execution step; used in output-preservation logic.
+UI_CHAINLIT_UTILS_NODE_EXECUTE: str = "execute"
 
 # Phase metadata: node_key -> (phase_number, display_label, step_type, avatar_file)
 UI_CHAINLIT_UTILS_PHASE_META: dict[str, tuple[str, str, str, str]] = {
