@@ -149,33 +149,3 @@ footer, [class*="footer"], div:has(> footer) {
     max-width: none !important;
   }
 }
-
-/*
-  Step popup interaction
-  ─────────────────────
-  Chainlit renders each agent step as a collapsible accordion (.step).
-  Without explicit pointer-event guards the header can end up unresponsive
-  after our sidebar-removal CSS shifts the layout.
-
-  min-height ensures a zero-content step still has a clickable surface before
-  the first stream_token fires.
-*/
-
-/*
-  contain: layout paint creates an isolated layout/paint context per step so
-  any content overflow stays inside the step's box and cannot bleed onto
-  sibling steps or the final summary message — defense in depth against
-  Chainlit's virtualizer freezing slot heights via preserveSize.
-  isolation: isolate prevents z-index leakage across steps.
-*/
-.step {
-  min-height: 24px;
-  contain: layout paint;
-  isolation: isolate;
-}
-
-.step [role="button"],
-.step [aria-expanded] {
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}

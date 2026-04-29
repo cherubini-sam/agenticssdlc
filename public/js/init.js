@@ -426,20 +426,6 @@
     }).observe(document.head, { childList: true });
   }
 
-  /* Step popup: repair pointer-events on step headers.
-     data-exp-fixed marks steps already processed so this is a no-op on
-     subsequent MutationObserver ticks (avoids O(n) DOM work per streamed token). */
-  function fixStepExpansion() {
-    document.querySelectorAll('.step:not([data-exp-fixed])').forEach(function (step) {
-      var header = step.querySelector('[role="button"]')
-                || step.querySelector('[aria-expanded]');
-      if (!header) return;
-      header.style.setProperty('pointer-events', 'auto', 'important');
-      header.style.setProperty('cursor', 'pointer', 'important');
-      step.setAttribute('data-exp-fixed', '1');
-    });
-  }
-
   /* Minor tweaks */
   function fixPlaceholder() {
     var ta = document.querySelector('textarea');
@@ -477,35 +463,9 @@
     applyThemeBridge();
     injectSettingsStyles();
     fixSelectDropdown();
-    fixStepExpansion();
   }
 
-  /* Nudge Chainlit's virtualized message list to re-measure step slots after
-     content grows post-stream. Without this, slots frozen by preserveSize
-     keep their streamed-time height and later content paints over siblings. */
-  var _resizeNudgeTimer = null;
-  function nudgeVirtualizer() {
-    if (_resizeNudgeTimer) return;
-    _resizeNudgeTimer = setTimeout(function () {
-      _resizeNudgeTimer = null;
-      window.dispatchEvent(new Event('resize'));
-    }, 150);
-  }
-
-  function observerCallback(mutations) {
-    runAll();
-    for (var i = 0; i < mutations.length; i++) {
-      var m = mutations[i];
-      if (!m.addedNodes || !m.addedNodes.length) continue;
-      var t = m.target;
-      if (t && t.nodeType === 1 && (t.classList && t.classList.contains('step') || (t.closest && t.closest('.step')))) {
-        nudgeVirtualizer();
-        break;
-      }
-    }
-  }
-
-  var observer = new MutationObserver(observerCallback);
+  var observer = new MutationObserver(runAll);
 
   function start() {
     runAll();

@@ -38,7 +38,6 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_UTILS_PHASE_META,
     UI_CHAINLIT_UTILS_STARTERS,
     UI_CHAINLIT_UTILS_STEP_INIT_TOKEN,
-    UI_CHAINLIT_UTILS_STEP_STREAM_CAP,
     UI_CHAINLIT_UTILS_STEP_TYPE_LLM,
     UI_CHAINLIT_UTILS_TASK_PHASES,
 )
@@ -395,16 +394,9 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
                     else:
                         running[k] = v
 
-                streamed_tokens = token_counts.pop(name, 0)
+                token_counts.pop(name, 0)
                 formatted = ui_chainlit_utils_format_phase_output(name, output)
-                # Skip step.output replacement for any step that streamed real content.
-                # Chainlit 1.3 freezes a virtualized message slot at the streamed size
-                # once the step is no longer last; replacing the body afterward with a
-                # larger formatted block paints into a frozen slot and visually overlaps
-                # subsequent steps. Keep the streamed content as-is unless it exceeded
-                # the cap (then fall back to the formatter to avoid browser-side OOM).
-                _skip_output = 0 < streamed_tokens <= UI_CHAINLIT_UTILS_STEP_STREAM_CAP
-                if formatted and not _skip_output:
+                if formatted:
                     step.output = formatted
 
                 await step.__aexit__(None, None, None)
