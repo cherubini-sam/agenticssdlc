@@ -480,7 +480,32 @@
     fixStepExpansion();
   }
 
-  var observer = new MutationObserver(runAll);
+  /* Nudge Chainlit's virtualized message list to re-measure step slots after
+     content grows post-stream. Without this, slots frozen by preserveSize
+     keep their streamed-time height and later content paints over siblings. */
+  var _resizeNudgeTimer = null;
+  function nudgeVirtualizer() {
+    if (_resizeNudgeTimer) return;
+    _resizeNudgeTimer = setTimeout(function () {
+      _resizeNudgeTimer = null;
+      window.dispatchEvent(new Event('resize'));
+    }, 150);
+  }
+
+  function observerCallback(mutations) {
+    runAll();
+    for (var i = 0; i < mutations.length; i++) {
+      var m = mutations[i];
+      if (!m.addedNodes || !m.addedNodes.length) continue;
+      var t = m.target;
+      if (t && t.nodeType === 1 && (t.classList && t.classList.contains('step') || (t.closest && t.closest('.step')))) {
+        nudgeVirtualizer();
+        break;
+      }
+    }
+  }
+
+  var observer = new MutationObserver(observerCallback);
 
   function start() {
     runAll();
