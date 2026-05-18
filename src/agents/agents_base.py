@@ -29,6 +29,7 @@ from src.agents.agents_utils import (
     AGENTS_DOC_LOADER_CACHE_MAX_SIZE,
 )
 from src.core.core_llm import core_llm_get_llm as get_llm
+from src.core.core_utils import CORE_LLM_AGENT_TIER_MAP, CORE_LLM_DEFAULT_TIER
 
 
 @lru_cache(maxsize=AGENTS_DOC_LOADER_CACHE_MAX_SIZE)
@@ -53,7 +54,8 @@ class AgentsBase:
     role_doc_paths: list[str] = []
 
     def __init__(self) -> None:
-        self.llm = get_llm()
+        tier = CORE_LLM_AGENT_TIER_MAP.get(self.agent_name, CORE_LLM_DEFAULT_TIER)
+        self.llm = get_llm(tier=tier)
         self.logger = logging.getLogger(f"{AGENTS_BASE_LOGGER_PREFIX}{self.agent_name.lower()}")
         self._role_doc: str = self._agents_base_load_doc_bundle()
 

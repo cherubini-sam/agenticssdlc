@@ -153,3 +153,65 @@ class TestDetectMissingContingentSections:
             plan=None, context=None, known_sections=["X"]  # type: ignore[arg-type]
         )
         assert missing == []
+
+
+class TestAgentsBaseTierWiring:
+    """AgentsBase resolves its LLM tier from CORE_LLM_AGENT_TIER_MAP via agent_name."""
+
+    @pytest.mark.parametrize(
+        "agent_name, expected_tier",
+        [
+            ("ARCHITECT", "high"),
+            ("REFLECTOR", "high"),
+            ("ENGINEER", "high"),
+            ("MANAGER", "high"),
+            ("PROTOCOL", "low"),
+            ("LIBRARIAN", "low"),
+            ("VALIDATOR", "low"),
+        ],
+    )
+    def test_init_resolves_tier_from_agent_name(self, agent_name: str, expected_tier: str) -> None:
+        """Each agent_name maps to the tier configured in CORE_LLM_AGENT_TIER_MAP."""
+
+        captured: dict = {}
+
+        def fake_get_llm(tier: str = "low", temperature: float = 0.1) -> MagicMock:
+            captured["tier"] = tier
+            return MagicMock()
+
+        with (
+            patch("agents.agents_base.get_llm", side_effect=fake_get_llm),
+            patch("agents.agents_base._agents_base_doc_loader_read", return_value=""),
+        ):
+
+            class _Concrete(BaseAgent):
+                pass
+
+            _Concrete.agent_name = agent_name
+            _Concrete.role_doc_paths = []
+            _Concrete()
+
+        assert captured["tier"] == expected_tier
+
+    def test_unknown_agent_name_falls_back_to_default_tier(self) -> None:
+        """An agent_name not in CORE_LLM_AGENT_TIER_MAP resolves to the default tier."""
+
+        captured: dict = {}
+
+        def fake_get_llm(tier: str = "low", temperature: float = 0.1) -> MagicMock:
+            captured["tier"] = tier
+            return MagicMock()
+
+        with (
+            patch("agents.agents_base.get_llm", side_effect=fake_get_llm),
+            patch("agents.agents_base._agents_base_doc_loader_read", return_value=""),
+        ):
+
+            class _Concrete(BaseAgent):
+                pass
+
+            _Concrete.agent_name = "UNKNOWN_AGENT"
+            _Concrete.role_doc_paths = []
+            _Concrete()
+
+        assert captured["tier"] == "low"

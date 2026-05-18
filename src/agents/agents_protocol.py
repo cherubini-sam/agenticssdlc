@@ -80,7 +80,7 @@ class AgentsProtocol(AgentsBase):
         """
 
         protocol_llm = ChatVertexAI(
-            model_name=settings.gemini_model,
+            model_name=settings.gemini_model_low,
             tuned_model_name=self._endpoint_id,
             project=settings.gcp_project_id,
             location=settings.gcp_region,

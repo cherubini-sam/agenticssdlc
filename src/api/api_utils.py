@@ -156,7 +156,9 @@ API_MAIN_LOG_SUPABASE_START: str = "Supabase — validate connection and registe
 API_MAIN_LOG_SUPABASE_ERROR: str = "Supabase connection check failed (non-fatal): {error}"
 API_MAIN_STATUS_ENABLED: str = "enabled"
 API_MAIN_STATUS_DISABLED: str = "disabled (local dev)"
-API_MAIN_LOG_READY: str = "Ready — model: {model}, vector: {vector}, auth: {auth}"
+API_MAIN_LOG_READY: str = (
+    "Ready — model_high: {model_high}, model_low: {model_low}, vector: {vector}, auth: {auth}"
+)
 API_MAIN_LOG_SHUTDOWN: str = "Shutdown complete"
 API_MAIN_LOG_GRAFANA_DISABLED: str = (
     "Grafana remote-write disabled — GRAFANA_PROMETHEUS_URL is empty. Dashboard panels "

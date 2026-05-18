@@ -21,6 +21,15 @@ from src.api.api_utils import (
 from src.api.middleware.api_middleware_observability import get_active_workflow_count
 from src.api.schemas.api_schemas_agents import ApiSchemasAgentStatus, ApiSchemasSystemStatus
 from src.core.core_config import core_config_get_settings as get_settings
+from src.core.core_utils import CORE_LLM_AGENT_TIER_MAP, CORE_LLM_TIER_HIGH
+
+
+def _model_for(agent_name: str, settings) -> str:
+    tier = CORE_LLM_AGENT_TIER_MAP.get(agent_name)
+    if tier == CORE_LLM_TIER_HIGH:
+        return settings.gemini_model_high
+    return settings.gemini_model_low
+
 
 router = APIRouter(prefix="/api/v1", tags=["agents"])
 
@@ -39,22 +48,31 @@ async def api_routers_agents_status(request: Request) -> ApiSchemasSystemStatus:
     """
 
     settings = get_settings()
-    model = settings.gemini_model
 
     # Manager is "active" when workflows are in-flight, otherwise "idle"
     manager_status = (
         API_AGENT_STATUS_ACTIVE if get_active_workflow_count() > 0 else API_AGENT_STATUS_IDLE
     )
     agents = [
-        ApiSchemasAgentStatus(name=API_ROUTERS_AGENTS_MANAGER, model=model, status=manager_status),
         ApiSchemasAgentStatus(
-            name=API_ROUTERS_AGENTS_ARCHITECT, model=model, status=API_AGENT_STATUS_IDLE
+            name=API_ROUTERS_AGENTS_MANAGER,
+            model=_model_for(API_ROUTERS_AGENTS_MANAGER, settings),
+            status=manager_status,
         ),
         ApiSchemasAgentStatus(
-            name=API_ROUTERS_AGENTS_ENGINEER, model=model, status=API_AGENT_STATUS_IDLE
+            name=API_ROUTERS_AGENTS_ARCHITECT,
+            model=_model_for(API_ROUTERS_AGENTS_ARCHITECT, settings),
+            status=API_AGENT_STATUS_IDLE,
         ),
         ApiSchemasAgentStatus(
-            name=API_ROUTERS_AGENTS_VALIDATOR, model=model, status=API_AGENT_STATUS_IDLE
+            name=API_ROUTERS_AGENTS_ENGINEER,
+            model=_model_for(API_ROUTERS_AGENTS_ENGINEER, settings),
+            status=API_AGENT_STATUS_IDLE,
+        ),
+        ApiSchemasAgentStatus(
+            name=API_ROUTERS_AGENTS_VALIDATOR,
+            model=_model_for(API_ROUTERS_AGENTS_VALIDATOR, settings),
+            status=API_AGENT_STATUS_IDLE,
         ),
         ApiSchemasAgentStatus(
             name=API_ROUTERS_AGENTS_LIBRARIAN,
@@ -62,7 +80,9 @@ async def api_routers_agents_status(request: Request) -> ApiSchemasSystemStatus:
             status=API_AGENT_STATUS_IDLE,
         ),
         ApiSchemasAgentStatus(
-            name=API_ROUTERS_AGENTS_REFLECTOR, model=model, status=API_AGENT_STATUS_IDLE
+            name=API_ROUTERS_AGENTS_REFLECTOR,
+            model=_model_for(API_ROUTERS_AGENTS_REFLECTOR, settings),
+            status=API_AGENT_STATUS_IDLE,
         ),
     ]
 

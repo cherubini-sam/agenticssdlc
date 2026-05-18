@@ -11,6 +11,8 @@ from src.core.core_utils import (
     CORE_CONFIG_DEFAULT_GCP_REGION,
     CORE_CONFIG_DEFAULT_GCS_BUCKET,
     CORE_CONFIG_DEFAULT_GEMINI_MODEL,
+    CORE_CONFIG_DEFAULT_GEMINI_MODEL_HIGH,
+    CORE_CONFIG_DEFAULT_GEMINI_MODEL_LOW,
     CORE_CONFIG_DEFAULT_PORT,
     CORE_CONFIG_DEFAULT_RATE_LIMIT_RPM,
     CORE_CONFIG_ENV_ENCODING,
@@ -26,7 +28,8 @@ class CoreSettings(BaseSettings):
 
     Field groups:
         GCP: gcp_project_id, gcp_region, gcs_bucket.
-        Gemini: gemini_model, tuned_protocol_endpoint_id.
+        Gemini: gemini_model_high, gemini_model_low, gemini_model (legacy alias for the low tier),
+            tuned_protocol_endpoint_id.
         Supabase: supabase_url, supabase_key, supabase_db_url.
         Qdrant: qdrant_url, qdrant_api_key.
         ChromaDB: chroma_path (local fallback when qdrant_url is empty).
@@ -48,7 +51,11 @@ class CoreSettings(BaseSettings):
     gcp_region: str = Field(default=CORE_CONFIG_DEFAULT_GCP_REGION)
     gcs_bucket: str = Field(default=CORE_CONFIG_DEFAULT_GCS_BUCKET)
 
-    # Single Gemini model for all agents — auth handled via ADC
+    # Tiered Gemini routing — high tier for reasoning agents, low tier for utility agents.
+    # Legacy `gemini_model` is preserved as an alias for the low tier so existing GEMINI_MODEL
+    # env values continue to work. Auth handled via ADC.
+    gemini_model_high: str = Field(default=CORE_CONFIG_DEFAULT_GEMINI_MODEL_HIGH)
+    gemini_model_low: str = Field(default=CORE_CONFIG_DEFAULT_GEMINI_MODEL_LOW)
     gemini_model: str = Field(default=CORE_CONFIG_DEFAULT_GEMINI_MODEL)
 
     # Tuned Protocol Gatekeeper endpoint — empty disables LLM path (local dev uses legacy heuristic)
