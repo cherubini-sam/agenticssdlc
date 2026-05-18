@@ -18,10 +18,23 @@ class TestCoreSettings:
         assert len(s.gcp_project_id) > 0
 
     def test_default_gemini_model(self) -> None:
-        """Default gemini_model contains 'gemini'."""
+        """Default gemini_model (legacy alias) contains 'gemini' and mirrors the low tier."""
 
         s = CoreSettings()
         assert "gemini" in s.gemini_model.lower()
+        assert s.gemini_model == s.gemini_model_low
+
+    def test_default_gemini_model_high(self) -> None:
+        """Default high tier is Gemini 2.5 Pro."""
+
+        s = CoreSettings()
+        assert s.gemini_model_high == "gemini-2.5-pro"
+
+    def test_default_gemini_model_low(self) -> None:
+        """Default low tier is Gemini 2.5 Flash."""
+
+        s = CoreSettings()
+        assert s.gemini_model_low == "gemini-2.5-flash"
 
     def test_default_port(self) -> None:
         """Default port is a positive integer."""

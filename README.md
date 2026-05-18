@@ -217,6 +217,11 @@ poetry install
 ```dotenv
 GCP_PROJECT_ID=your-gcp-project-id
 GCP_REGION=us-central1
+
+# Tiered Gemini routing
+GEMINI_MODEL_HIGH=gemini-2.5-pro
+GEMINI_MODEL_LOW=gemini-2.5-flash
+# Legacy alias — kept for backward compatibility; maps to the low tier.
 GEMINI_MODEL=gemini-2.5-flash
 
 # Leave empty to disable auth (local dev)
@@ -256,7 +261,7 @@ poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 | :-------------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
 | **Orchestration**           | LangGraph 0.2                     | Stateful graph engine for multi-phase agent coordination and retry logic.           |
 | **LLM Framework**           | LangChain 0.3                     | Unified interface for LLM interaction and async Vertex AI integration.              |
-| **LLM Backend**             | Google Gemini (Vertex AI)         | High-context, function-calling engine with native GCP security.                     |
+| **LLM Backend**             | Google Gemini (Vertex AI) — tiered: Pro for ARCHITECT/REFLECTOR/ENGINEER/MANAGER, Flash for PROTOCOL/LIBRARIAN/VALIDATOR | High-context, function-calling engine with native GCP security; reasoning agents on Pro, classification and utility agents on Flash. |
 | **LLM Fine-tuning**         | Vertex AI SFT + LoRA              | Parameter-efficient adapter training with synthetic data generation and evaluation. |
 | **API Layer**               | FastAPI + Uvicorn                 | Async REST framework with OpenAPI generation and lifecycle management.              |
 | **Chat UI**                 | Chainlit 1.3                      | Real-time streaming interface for per-phase agent tracking.                         |

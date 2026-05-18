@@ -162,7 +162,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     logger.info(
         API_MAIN_LOG_READY.format(
-            model=settings.gemini_model,
+            model_high=settings.gemini_model_high,
+            model_low=settings.gemini_model_low,
             vector=app.state.vector_store.primary,
             auth=auth_status,
         )

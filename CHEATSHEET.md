@@ -81,7 +81,13 @@ cd ../..
 ```dotenv
 GCP_PROJECT_ID=agentics-sdlc
 GCP_REGION=us-central1
+
+# Tiered Gemini routing
+GEMINI_MODEL_HIGH=gemini-2.5-pro
+GEMINI_MODEL_LOW=gemini-2.5-flash
+# Legacy alias — kept for backward compatibility; maps to the low tier.
 GEMINI_MODEL=gemini-2.5-flash
+
 BIGQUERY_DATASET=agentics_sdlc_analytics
 LOG_LEVEL=INFO
 PORT=8080

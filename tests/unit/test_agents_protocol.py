@@ -178,6 +178,7 @@ class TestAgentsProtocolTunedModel:
                 "projects/test/locations/us-central1/endpoints/123"
             )
             settings.gemini_model = "gemini-2.5-flash"
+            settings.gemini_model_low = "gemini-2.5-flash"
             settings.gcp_project_id = "test-project"
             settings.gcp_region = "us-central1"
             mock_settings.return_value = settings
@@ -209,6 +210,7 @@ class TestAgentsProtocolTunedModel:
                 "projects/test/locations/us-central1/endpoints/123"
             )
             settings.gemini_model = "gemini-2.5-flash"
+            settings.gemini_model_low = "gemini-2.5-flash"
             settings.gcp_project_id = "test-project"
             settings.gcp_region = "us-central1"
             mock_settings.return_value = settings
@@ -240,6 +242,7 @@ class TestAgentsProtocolTunedModel:
                 "projects/test/locations/us-central1/endpoints/123"
             )
             settings.gemini_model = "gemini-2.5-flash"
+            settings.gemini_model_low = "gemini-2.5-flash"
             settings.gcp_project_id = "test-project"
             settings.gcp_region = "us-central1"
             mock_settings.return_value = settings
@@ -264,6 +267,7 @@ class TestAgentsProtocolTunedModel:
             settings = MagicMock()
             settings.tuned_protocol_endpoint_id = ""
             settings.gemini_model = "gemini-2.5-flash"
+            settings.gemini_model_low = "gemini-2.5-flash"
             settings.gcp_project_id = "test-project"
             settings.gcp_region = "us-central1"
             mock_settings.return_value = settings
@@ -288,6 +292,7 @@ class TestAgentsProtocolTunedModel:
                 "projects/test/locations/us-central1/endpoints/123"
             )
             settings.gemini_model = "gemini-2.5-flash"
+            settings.gemini_model_low = "gemini-2.5-flash"
             settings.gcp_project_id = "test-project"
             settings.gcp_region = "us-central1"
             mock_settings.return_value = settings

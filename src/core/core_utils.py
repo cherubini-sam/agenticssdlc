@@ -8,7 +8,9 @@ CORE_CONFIG_ENV_ENCODING: str = "utf-8"
 CORE_CONFIG_DEFAULT_GCP_PROJECT: str = "agentics-sdlc-dev"
 CORE_CONFIG_DEFAULT_GCP_REGION: str = "us-central1"
 CORE_CONFIG_DEFAULT_GCS_BUCKET: str = "artifacts-agentics-sdlc"
-CORE_CONFIG_DEFAULT_GEMINI_MODEL: str = "gemini-2.5-flash"
+CORE_CONFIG_DEFAULT_GEMINI_MODEL_HIGH: str = "gemini-2.5-pro"
+CORE_CONFIG_DEFAULT_GEMINI_MODEL_LOW: str = "gemini-2.5-flash"
+CORE_CONFIG_DEFAULT_GEMINI_MODEL: str = CORE_CONFIG_DEFAULT_GEMINI_MODEL_LOW
 CORE_CONFIG_DEFAULT_BIGQUERY_DATASET: str = "agentics_sdlc_analytics"
 CORE_CONFIG_DEFAULT_PORT: int = 8080
 CORE_CONFIG_DEFAULT_RATE_LIMIT_RPM: int = 60
@@ -17,6 +19,21 @@ CORE_CONFIG_MISSING_PROJECT_ID_ERROR: str = "GCP_PROJECT_ID is required"
 
 # LLM
 CORE_LLM_DEFAULT_TEMPERATURE: float = 0.1
+
+CORE_LLM_TIER_HIGH: str = "high"
+CORE_LLM_TIER_LOW: str = "low"
+CORE_LLM_DEFAULT_TIER: str = CORE_LLM_TIER_LOW
+CORE_LLM_UNKNOWN_TIER_ERROR: str = "Unknown LLM tier: {tier}"
+
+CORE_LLM_AGENT_TIER_MAP: dict[str, str] = {
+    "ARCHITECT": CORE_LLM_TIER_HIGH,
+    "REFLECTOR": CORE_LLM_TIER_HIGH,
+    "ENGINEER": CORE_LLM_TIER_HIGH,
+    "MANAGER": CORE_LLM_TIER_HIGH,
+    "PROTOCOL": CORE_LLM_TIER_LOW,
+    "LIBRARIAN": CORE_LLM_TIER_LOW,
+    "VALIDATOR": CORE_LLM_TIER_LOW,
+}
 
 # Safety settings left as None to use Vertex AI defaults.
 # Passing custom SafetySetting objects causes type conflicts between
