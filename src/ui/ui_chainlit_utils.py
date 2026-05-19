@@ -67,38 +67,46 @@ UI_CHAINLIT_UTILS_TASK_PHASES: list[tuple[str, str]] = [
 # Example prompts shown on empty chat
 UI_CHAINLIT_UTILS_STARTERS: list[dict[str, str]] = [
     {
-        "label": "Optimize database query",
+        "label": "Database & Query",
         "message": (
-            "Filtering the orders table by customer_id and status is slow. "
-            "The table has no indexes beyond the primary key. "
-            "Identify the bottleneck and provide the B-tree CREATE INDEX statement."
+            "The orders table has 2M rows. Filtering by customer_id and status is slow. "
+            "No indexes exist beyond the primary key. "
+            "Identify why a full table scan occurs on this query pattern, "
+            "assess the performance impact at scale, and provide the recommended "
+            "CREATE INDEX statement with justification for the chosen index type "
+            "and column order."
         ),
         "icon": "/public/assets/avatars/architect.svg",
     },
     {
-        "label": "Audit code for security",
+        "label": "Security Audit",
         "message": (
-            "Analyze this snippet for vulnerabilities: SELECT * FROM users WHERE id = user_input. "
-            "Identify the primary security flaw and provide the parameterized "
-            "query equivalent in a single line."
+            "This Python snippet concatenates user input directly into a query: "
+            "query = 'SELECT * FROM users WHERE id = ' + user_input. "
+            "Identify all security flaws present, explain the attack vector for each, "
+            "assess the severity level, and provide the hardened parameterized equivalent "
+            "with justification for why the fix eliminates the risk."
         ),
         "icon": "/public/assets/avatars/validator.svg",
     },
     {
-        "label": "Build a data ingestion pipeline",
+        "label": "Data Engineering",
         "message": (
-            "Implement a Pandas function to ingest a JSON file, deduplicate records "
-            "based on the 'id' column, and export the output to Parquet. "
-            "Please constrain the implementation to a minimal script."
+            "A JSON file contains records with duplicate id values and inconsistent "
+            "updated_at timestamps. Write a Python function that ingests the file, "
+            "deduplicates records keeping the latest updated_at, and exports the result "
+            "to Parquet, with a summary of edge cases handled and assumptions made."
         ),
         "icon": "/public/assets/avatars/engineer.svg",
     },
     {
-        "label": "Generate production DevOps",
+        "label": "MLOps & Monitoring",
         "message": (
-            "Write a minimal, production-ready Dockerfile for a Node.js Express application. "
-            "Provide only the essential instructions required to build "
-            "and run the container, omitting any explanatory text."
+            "A classification model logs predicted labels to a database daily. "
+            "Write a Python function that reads a list of predicted labels, "
+            "computes the class distribution as percentages, and flags classes deviating "
+            "significantly from an expected reference distribution, with an explanation "
+            "of what a skewed prediction distribution indicates in a production environment."
         ),
         "icon": "/public/assets/avatars/reflector.svg",
     },
