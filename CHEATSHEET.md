@@ -514,11 +514,13 @@ cd ../..
 
 ### BigQuery Scheduled Queries
 
-| KPI | Destination Table |
+The file `src/analytics/analytics_scheduled_queries.sql` contains three plain `SELECT` queries against `agentics_sdlc_analytics.agent_audit_log`. Run them manually in the BigQuery console or schedule them via the BigQuery UI.
+
+| KPI | Query |
 |:---|:---|
-| Daily Agent Call Volume | `agentics_sdlc_analytics.kpi_daily_agent_call_volume` |
-| Avg Confidence & Latency per Agent (7d) | `agentics_sdlc_analytics.kpi_avg_confidence_latency` |
-| Low-Confidence Sessions | `agentics_sdlc_analytics.kpi_low_confidence_sessions` |
+| Daily Agent Call Volume | Counts calls and success rate per agent per day (last 30 days) |
+| Avg Confidence & Latency per Agent (7d) | Average and P95 latency + confidence per agent (last 7 days) |
+| Low-Confidence Sessions | Sessions with confidence < 0.85 (last 7 days, capped at 500 rows) |
 
 ### Grafana Dashboard Import
 
