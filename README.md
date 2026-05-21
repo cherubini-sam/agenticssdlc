@@ -72,7 +72,7 @@ https://github.com/user-attachments/assets/1bd50625-f2af-49cb-94f2-2190cad87462
 
 **Agentics SDLC** is a production-grade, serverless **Multi-Agent System (MAS)** built on **LangGraph**, where each node is a specialist AI agent. You submit a high-level intent — "Build this feature" — and the system coordinates seven specialized agents through a strict 6-phase pipeline to produce production-quality output. Every phase is protocol-enforced: the PROTOCOL agent validates every session at boot, and the REFLECTOR applies a 4-persona confidence audit before any code is executed.
 
-Two independent interfaces run on top of the same LangGraph graph: a **FastAPI** REST backend with SSE streaming, and a **Chainlit** real-time chat UI with live per-phase Steps. Observability is handled by Prometheus metrics pushed to Grafana Cloud, with BigQuery storing per-agent audit logs and Supabase persisting workflow snapshots. Everything is codified in **Terraform** and deployed to **GCP Cloud Run** via a CI/CD service account.
+Two independent interfaces run on top of the same LangGraph graph: a **FastAPI** REST backend, and a **Chainlit** real-time chat UI with live per-phase Steps. Observability is handled by Prometheus metrics pushed to Grafana Cloud, with BigQuery storing per-agent audit logs and Supabase persisting workflow snapshots. Everything is codified in **Terraform** and deployed to **GCP Cloud Run** via a CI/CD service account.
 
 ### Highlights
 
