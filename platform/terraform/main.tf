@@ -24,16 +24,15 @@ resource "google_storage_bucket" "artifacts" {
   uniform_bucket_level_access = true
 
   versioning {
-    enabled = true
+    enabled = false
   }
 
   lifecycle_rule {
     condition {
-      age = 90
+      age = 30
     }
     action {
-      type          = "SetStorageClass"
-      storage_class = "NEARLINE"
+      type = "Delete"
     }
   }
 }
@@ -56,8 +55,9 @@ resource "google_bigquery_table" "agent_audit_log" {
   deletion_protection = true
 
   time_partitioning {
-    type  = "DAY"
-    field = "timestamp"
+    type          = "DAY"
+    field         = "timestamp"
+    expiration_ms = 2592000000
   }
 
   clustering = ["agent_name"]

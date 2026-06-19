@@ -25,7 +25,7 @@ variable "min_instances" {
 variable "max_instances" {
   description = "Max Cloud Run instances"
   type        = number
-  default     = 10
+  default     = 2
 }
 
 variable "cloud_run_memory" {
@@ -37,7 +37,7 @@ variable "cloud_run_memory" {
 variable "cloud_run_cpu" {
   description = "vCPUs per Cloud Run instance"
   type        = string
-  default     = "2"
+  default     = "1"
 }
 
 variable "bigquery_dataset_id" {
@@ -49,5 +49,5 @@ variable "bigquery_dataset_id" {
 variable "artifacts_bucket_name" {
   description = "GCS bucket for ML artifacts and knowledge base"
   type        = string
-  default     = ""  # falls back to artifacts-{project_id} in main.tf
+  default     = "" # falls back to artifacts-{project_id} in main.tf
 }

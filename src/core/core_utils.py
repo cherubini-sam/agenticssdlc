@@ -61,7 +61,7 @@ CORE_REMOTE_WRITE_JOB_LABEL: str = "agentics-sdlc-api"
 CORE_REMOTE_WRITE_INSTANCE_ENV: str = "K_REVISION"
 
 # Heartbeat (single-writer, Grafana Cloud live-panel push)
-CORE_HEARTBEAT_INTERVAL_S: float = 10.0
+CORE_HEARTBEAT_INTERVAL_S: float = 30.0
 CORE_HEARTBEAT_LOG_START: str = "Grafana heartbeat task started (interval=%.1fs, instance=%s)"
 CORE_HEARTBEAT_LOG_STOP: str = "Grafana heartbeat task stopped"
 CORE_HEARTBEAT_LOG_TICK_ERROR: str = "Grafana heartbeat tick failed: %s"
