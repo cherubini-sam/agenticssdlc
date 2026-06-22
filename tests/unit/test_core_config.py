@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from core.core_config import CoreSettings, core_config_get_settings, core_config_validate_settings
+from core.core_utils import CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT
 
 
 class TestCoreSettings:
@@ -72,6 +73,39 @@ class TestCoreSettings:
 
         s = CoreSettings()
         assert isinstance(s.qdrant_url, str)
+
+    def test_default_langchain_project(self) -> None:
+        """Default langchain_project is 'agentic-sdlc'."""
+
+        s = CoreSettings()
+        assert s.langchain_project == "agentic-sdlc"
+
+    def test_langsmith_enabled_false_by_default(self) -> None:
+        """langsmith_enabled is False when no API key is set."""
+
+        s = CoreSettings()
+        assert s.langsmith_enabled is False
+
+    def test_langsmith_enabled_true_when_key_and_flag_set(self) -> None:
+        """langsmith_enabled is True when both flag and key are present."""
+
+        s = CoreSettings()
+        s.langchain_tracing_v2 = True
+        s.langchain_api_key = "sk-test"
+        assert s.langsmith_enabled is True
+
+    def test_langsmith_enabled_false_when_flag_off(self) -> None:
+        """langsmith_enabled is False when flag is off even if key is set."""
+
+        s = CoreSettings()
+        s.langchain_api_key = "sk-test"
+        s.langchain_tracing_v2 = False
+        assert s.langsmith_enabled is False
+
+    def test_default_langchain_project_constant(self) -> None:
+        """CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT constant equals 'agentic-sdlc'."""
+
+        assert CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT == "agentic-sdlc"
 
 
 class TestCoreConfigValidateSettings:

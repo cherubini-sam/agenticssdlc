@@ -40,6 +40,11 @@ CORE_LLM_AGENT_TIER_MAP: dict[str, str] = {
 # vertexai.generative_models and langchain-google-vertexai internals.
 CORE_LLM_SAFETY_SETTINGS = None
 
+# LangSmith / Tracing
+CORE_CONFIG_DEFAULT_LANGCHAIN_TRACING_V2: bool = False
+CORE_CONFIG_DEFAULT_LANGCHAIN_API_KEY: str = ""
+CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT: str = "agentic-sdlc"
+
 # Logging
 CORE_LOGGING_DEFAULT_LOG_LEVEL: str = "INFO"
 CORE_LOGGING_K_SERVICE_ENV: str = "K_SERVICE"
