@@ -13,6 +13,9 @@ from src.core.core_utils import (
     CORE_CONFIG_DEFAULT_GEMINI_MODEL,
     CORE_CONFIG_DEFAULT_GEMINI_MODEL_HIGH,
     CORE_CONFIG_DEFAULT_GEMINI_MODEL_LOW,
+    CORE_CONFIG_DEFAULT_LANGCHAIN_API_KEY,
+    CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT,
+    CORE_CONFIG_DEFAULT_LANGCHAIN_TRACING_V2,
     CORE_CONFIG_DEFAULT_PORT,
     CORE_CONFIG_DEFAULT_RATE_LIMIT_RPM,
     CORE_CONFIG_ENV_ENCODING,
@@ -40,6 +43,7 @@ class CoreSettings(BaseSettings):
             grafana_instance_id, grafana_api_key.
         CORS: allowed_origins.
         Rate Limiting: rate_limit_rpm (0 = no limit).
+        LangSmith: langchain_tracing_v2, langchain_api_key, langchain_project.
     """
 
     model_config = SettingsConfigDict(
@@ -100,6 +104,28 @@ class CoreSettings(BaseSettings):
 
     # RPM per API key, 0 = no limit
     rate_limit_rpm: int = Field(default=CORE_CONFIG_DEFAULT_RATE_LIMIT_RPM, alias="RATE_LIMIT_RPM")
+
+    # LangSmith / Tracing — tracing is OFF unless an API key is present
+    langchain_tracing_v2: bool = Field(
+        default=CORE_CONFIG_DEFAULT_LANGCHAIN_TRACING_V2, alias="LANGCHAIN_TRACING_V2"
+    )
+    langchain_api_key: str = Field(
+        default=CORE_CONFIG_DEFAULT_LANGCHAIN_API_KEY, alias="LANGCHAIN_API_KEY"
+    )
+    langchain_project: str = Field(
+        default=CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT, alias="LANGCHAIN_PROJECT"
+    )
+
+    @property
+    def langsmith_enabled(self) -> bool:
+        """Whether LangSmith tracing is active (requires both the flag and an API key).
+
+        Returns:
+            True only when tracing is requested and an API key is present; a no-op
+            (False) without a key so no trace data leaves the VPC by default.
+        """
+
+        return self.langchain_tracing_v2 and bool(self.langchain_api_key)
 
 
 def core_config_validate_settings(s: CoreSettings) -> None:

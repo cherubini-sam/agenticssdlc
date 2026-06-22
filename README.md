@@ -230,6 +230,11 @@ AGENTICS_SDLC_API_KEY=
 # Leave empty to use local ChromaDB
 QDRANT_URL=
 QDRANT_API_KEY=
+
+# LangSmith tracing (opt-in) — no-op without a key; no PII leaves the VPC when disabled
+LANGCHAIN_TRACING_V2=false
+LANGCHAIN_API_KEY=
+LANGCHAIN_PROJECT=agentic-sdlc
 ```
 
 ### Basic Usage
@@ -356,6 +361,8 @@ flowchart TD
 ```
 
 > See [CHEATSHEET.md → Enabling the Grafana dashboard locally](CHEATSHEET.md#enabling-the-grafana-dashboard-locally) for the three env vars to uncomment in `.env` to light up the live panels.
+
+> LangSmith LLM-call tracing is controlled by `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT`; it is gated by `CoreSettings.langsmith_enabled` (off when the key is absent).
 
 ---
 
