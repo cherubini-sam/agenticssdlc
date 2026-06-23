@@ -75,10 +75,10 @@ class TestCoreSettings:
         assert isinstance(s.qdrant_url, str)
 
     def test_default_langchain_project(self) -> None:
-        """Default langchain_project is 'agentic-sdlc'."""
+        """Default langchain_project is 'agentics-sdlc'."""
 
         s = CoreSettings()
-        assert s.langchain_project == "agentic-sdlc"
+        assert s.langchain_project == "agentics-sdlc"
 
     def test_langsmith_enabled_false_by_default(self) -> None:
         """langsmith_enabled is False when no API key is set."""
@@ -103,9 +103,9 @@ class TestCoreSettings:
         assert s.langsmith_enabled is False
 
     def test_default_langchain_project_constant(self) -> None:
-        """CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT constant equals 'agentic-sdlc'."""
+        """CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT constant equals 'agentics-sdlc'."""
 
-        assert CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT == "agentic-sdlc"
+        assert CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT == "agentics-sdlc"
 
 
 class TestCoreConfigValidateSettings:

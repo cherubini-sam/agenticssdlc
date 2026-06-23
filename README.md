@@ -183,15 +183,15 @@ sequenceDiagram
 
 ## 🤖 Agent Roster
 
-| Agent         | Phase                    | Role                                                                                                         |
-| :------------ | :----------------------- | :----------------------------------------------------------------------------------------------------------- |
+| Agent         | Phase                                       | Role                                                                                                                                    |
+| :------------ | :------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------- |
 | **MANAGER**   | Coordinator · Phase 1 — task classification | Central router and orchestrator (active). Builds the StateGraph, runs LLM task classification at Phase 1, and dispatches to all agents. |
-| **PROTOCOL**  | Phase 0 — boot gate      | Boot integrity validator (active). Checks every request before Phase 1; violations terminate immediately.    |
-| **LIBRARIAN** | Phase 2 — context        | Top-k RAG retrieval followed by LLM synthesis into a coherent context string. Caches result in state to skip re-retrieval on retry. |
-| **ARCHITECT** | Phase 3 — plan           | Drafts execution plan from task + context. On retry, consumes REFLECTOR's refined plan.                      |
-| **REFLECTOR** | Phase 4 — critique       | 4-persona confidence audit (Judge, Critic, Refiner, Curator). Emits score and refined plan; gates execution. |
-| **ENGINEER**  | Phase 5 — execution      | Executes the approved plan. Receives force-execute after max retries.                                        |
-| **VALIDATOR** | Phase 6 — QA             | Verifies output against task and plan. Produces normalized score; gates retry or acceptance.                 |
+| **PROTOCOL**  | Phase 0 — boot gate                         | Boot integrity validator (active). Checks every request before Phase 1; violations terminate immediately.                               |
+| **LIBRARIAN** | Phase 2 — context                           | Top-k RAG retrieval followed by LLM synthesis into a coherent context string. Caches result in state to skip re-retrieval on retry.     |
+| **ARCHITECT** | Phase 3 — plan                              | Drafts execution plan from task + context. On retry, consumes REFLECTOR's refined plan.                                                 |
+| **REFLECTOR** | Phase 4 — critique                          | 4-persona confidence audit (Judge, Critic, Refiner, Curator). Emits score and refined plan; gates execution.                            |
+| **ENGINEER**  | Phase 5 — execution                         | Executes the approved plan. Receives force-execute after max retries.                                                                   |
+| **VALIDATOR** | Phase 6 — QA                                | Verifies output against task and plan. Produces normalized score; gates retry or acceptance.                                            |
 
 ---
 
@@ -234,7 +234,7 @@ QDRANT_API_KEY=
 # LangSmith tracing (opt-in) — no-op without a key; no PII leaves the VPC when disabled
 LANGCHAIN_TRACING_V2=false
 LANGCHAIN_API_KEY=
-LANGCHAIN_PROJECT=agentic-sdlc
+LANGCHAIN_PROJECT=agentics-sdlc
 ```
 
 ### Basic Usage
@@ -262,33 +262,33 @@ poetry run chainlit run src/ui/ui_chainlit_app.py --host 0.0.0.0 --port 8000
 
 ## 🛠️ Technology Stack
 
-| Category                    | Technology                        | Purpose                                                                             |
-| :-------------------------- | :-------------------------------- | :---------------------------------------------------------------------------------- |
-| **Orchestration**           | LangGraph 0.2                     | Stateful graph engine for multi-phase agent coordination and retry logic.           |
-| **LLM Framework**           | LangChain 0.3                     | Unified interface for LLM interaction and async Vertex AI integration.              |
+| Category                    | Technology                                                                                                               | Purpose                                                                                                                              |
+| :-------------------------- | :----------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| **Orchestration**           | LangGraph 0.2                                                                                                            | Stateful graph engine for multi-phase agent coordination and retry logic.                                                            |
+| **LLM Framework**           | LangChain 0.3                                                                                                            | Unified interface for LLM interaction and async Vertex AI integration.                                                               |
 | **LLM Backend**             | Google Gemini (Vertex AI) — tiered: Pro for ARCHITECT/REFLECTOR/ENGINEER/MANAGER, Flash for PROTOCOL/LIBRARIAN/VALIDATOR | High-context, function-calling engine with native GCP security; reasoning agents on Pro, classification and utility agents on Flash. |
-| **LLM Fine-tuning**         | Vertex AI SFT + LoRA              | Parameter-efficient adapter training with synthetic data generation and evaluation. |
-| **API Layer**               | FastAPI + Uvicorn                 | Async REST framework with OpenAPI generation and lifecycle management.              |
-| **Chat UI**                 | Chainlit 1.3                      | Real-time streaming interface for per-phase agent tracking.                         |
-| **Embeddings**              | Sentence Transformers / BGE-large | 1024-dim dense vector model for high-recall RAG retrieval.                          |
-| **Vector Store (prod)**     | Qdrant Cloud                      | Quantized HNSW index for high-performance memory-efficient search.                  |
-| **Vector Store (dev)**      | ChromaDB (persistent local)       | Persistence-backed local vector store for zero-config development.                  |
-| **Embedding Runtime**       | PyTorch 2.3 (CPU-only in Docker)  | Optimized CPU-only runtime for lightweight container deployment.                    |
-| **Settings**                | Pydantic v2 BaseSettings          | Fail-fast environment configuration with type-safe validated singletons.            |
-| **Artifact Storage**        | Google Cloud Storage              | Per-task persistence of Engineer and Validator outputs as JSON blobs.               |
-| **Analytics - Audit**       | Google BigQuery                   | Non-blocking async ingestion of per-agent audit logs.                               |
-| **Analytics - State**       | Supabase (Postgres)               | Persistence for workflow snapshots and execution traces.                            |
-| **Observability - Metrics** | Prometheus                        | Real-time telemetry for latency, confidence, and system health.                     |
-| **Observability - Push**    | Grafana Cloud remote-write        | Custom remote-write implementation for ephemeral serverless metrics.                |
-| **Infrastructure**          | Google Cloud Run v2               | Serverless container orchestration with auto-scaling and CPU boost.                 |
-| **IaC**                     | Terraform 1.7+ (GCS backend)      | Declarative infrastructure management for all GCP and storage resources.            |
-| **Containerisation**        | Docker (multi-stage, 3 stages)    | Multi-stage non-root images optimized for cold-start performance.                   |
-| **Auth - API**              | Custom middleware (API key)       | Header-based API key validation for secure endpoint access.                         |
-| **Auth - UI**               | BCrypt password hashing           | Hashed credential validation for secure session-based UI access.                    |
-| **Rate Limiting**           | Custom middleware                 | Sliding window rate limiting to protect LLM quotas.                                 |
-| **Data Validation**         | Pydantic v2 schemas               | Structured error handling and schema enforcement for all endpoints.                 |
-| **Dependency Management**   | Poetry + pre-commit               | Reproducible environment management with pre-commit quality gates.                  |
-| **Testing**                 | Pytest                            | Async test suite for unit and integration coverage.                                 |
+| **LLM Fine-tuning**         | Vertex AI SFT + LoRA                                                                                                     | Parameter-efficient adapter training with synthetic data generation and evaluation.                                                  |
+| **API Layer**               | FastAPI + Uvicorn                                                                                                        | Async REST framework with OpenAPI generation and lifecycle management.                                                               |
+| **Chat UI**                 | Chainlit 1.3                                                                                                             | Real-time streaming interface for per-phase agent tracking.                                                                          |
+| **Embeddings**              | Sentence Transformers / BGE-large                                                                                        | 1024-dim dense vector model for high-recall RAG retrieval.                                                                           |
+| **Vector Store (prod)**     | Qdrant Cloud                                                                                                             | Quantized HNSW index for high-performance memory-efficient search.                                                                   |
+| **Vector Store (dev)**      | ChromaDB (persistent local)                                                                                              | Persistence-backed local vector store for zero-config development.                                                                   |
+| **Embedding Runtime**       | PyTorch 2.3 (CPU-only in Docker)                                                                                         | Optimized CPU-only runtime for lightweight container deployment.                                                                     |
+| **Settings**                | Pydantic v2 BaseSettings                                                                                                 | Fail-fast environment configuration with type-safe validated singletons.                                                             |
+| **Artifact Storage**        | Google Cloud Storage                                                                                                     | Per-task persistence of Engineer and Validator outputs as JSON blobs.                                                                |
+| **Analytics - Audit**       | Google BigQuery                                                                                                          | Non-blocking async ingestion of per-agent audit logs.                                                                                |
+| **Analytics - State**       | Supabase (Postgres)                                                                                                      | Persistence for workflow snapshots and execution traces.                                                                             |
+| **Observability - Metrics** | Prometheus                                                                                                               | Real-time telemetry for latency, confidence, and system health.                                                                      |
+| **Observability - Push**    | Grafana Cloud remote-write                                                                                               | Custom remote-write implementation for ephemeral serverless metrics.                                                                 |
+| **Infrastructure**          | Google Cloud Run v2                                                                                                      | Serverless container orchestration with auto-scaling and CPU boost.                                                                  |
+| **IaC**                     | Terraform 1.7+ (GCS backend)                                                                                             | Declarative infrastructure management for all GCP and storage resources.                                                             |
+| **Containerisation**        | Docker (multi-stage, 3 stages)                                                                                           | Multi-stage non-root images optimized for cold-start performance.                                                                    |
+| **Auth - API**              | Custom middleware (API key)                                                                                              | Header-based API key validation for secure endpoint access.                                                                          |
+| **Auth - UI**               | BCrypt password hashing                                                                                                  | Hashed credential validation for secure session-based UI access.                                                                     |
+| **Rate Limiting**           | Custom middleware                                                                                                        | Sliding window rate limiting to protect LLM quotas.                                                                                  |
+| **Data Validation**         | Pydantic v2 schemas                                                                                                      | Structured error handling and schema enforcement for all endpoints.                                                                  |
+| **Dependency Management**   | Poetry + pre-commit                                                                                                      | Reproducible environment management with pre-commit quality gates.                                                                   |
+| **Testing**                 | Pytest                                                                                                                   | Async test suite for unit and integration coverage.                                                                                  |
 
 ---
 
@@ -322,18 +322,18 @@ flowchart LR
 
 `.agent/rag/skills/` holds ten language-agnostic skill definitions covering the full SDLC. Each skill is a fully self-contained reference: a single retrieval gives the consuming agent everything it needs for that domain — scope description, directional patterns, required outputs, and common failure modes — without depending on any other skill or governance document. Each skill is grounded in an authoritative source (NIST SSDF, OWASP SAMM, Google SRE, DORA, C4, ADR, RFC 9457, Diátaxis). LIBRARIAN retrieves the most relevant skill at Phase 2 and synthesises it into the context string consumed by downstream agents.
 
-| # | Skill | SDLC Stage | Primary Agents | Authoritative Source | Focus |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| 1 | **skills_architecture_design** | Design | ARCHITECT | C4 model + ADR (Nygard) | Decomposition, boundary hygiene, decision records, cross-cutting concerns |
-| 2 | **skills_api_contract** | Design | ARCHITECT, ENGINEER | RFC 9457, RFC 7396 | Resource shape, idempotency, error semantics, versioning |
-| 3 | **skills_data_modeling** | Design | ARCHITECT, ENGINEER | Database refactoring (Ambler) | Schema hygiene, normalisation, constraints, expand→contract migrations |
-| 4 | **skills_code_execution** | Build | ENGINEER, REFLECTOR | NIST SSDF (PW.5, PW.7) | Forbidden patterns, hygiene markers, structural style, complexity |
-| 5 | **skills_test_authoring** | Verify | ENGINEER, VALIDATOR | Cohn test pyramid | Pyramid balance, authoring discipline, coverage targets, determinism |
-| 6 | **skills_security_review** | Verify | REFLECTOR, VALIDATOR | OWASP SAMM, NIST SSDF (PS, PW, RV) | Secrets, injection, authn/authz, supply chain |
-| 7 | **skills_performance_profiling** | Verify | ENGINEER, VALIDATOR | Google SRE Ch. 6 | Baseline, hotspot analysis, targeted optimisation, regression guard |
-| 8 | **skills_observability** | Operate | ENGINEER, VALIDATOR | Google SRE — four golden signals + SLI/SLO | Golden signals, SLI/SLO, telemetry hygiene, sensitive data |
-| 9 | **skills_release_engineering** | Deliver | ENGINEER, VALIDATOR | DORA — *Accelerate*, *State of DevOps* | CI discipline, deployment strategy, rollback safety, DORA metrics |
-| 10 | **skills_documentation** | Communicate | LIBRARIAN, all | Diátaxis four-mode framework | Tutorial / how-to / reference / explanation, doc-as-code, freshness |
+| #   | Skill                            | SDLC Stage  | Primary Agents       | Authoritative Source                       | Focus                                                                     |
+| :-- | :------------------------------- | :---------- | :------------------- | :----------------------------------------- | :------------------------------------------------------------------------ |
+| 1   | **skills_architecture_design**   | Design      | ARCHITECT            | C4 model + ADR (Nygard)                    | Decomposition, boundary hygiene, decision records, cross-cutting concerns |
+| 2   | **skills_api_contract**          | Design      | ARCHITECT, ENGINEER  | RFC 9457, RFC 7396                         | Resource shape, idempotency, error semantics, versioning                  |
+| 3   | **skills_data_modeling**         | Design      | ARCHITECT, ENGINEER  | Database refactoring (Ambler)              | Schema hygiene, normalisation, constraints, expand→contract migrations    |
+| 4   | **skills_code_execution**        | Build       | ENGINEER, REFLECTOR  | NIST SSDF (PW.5, PW.7)                     | Forbidden patterns, hygiene markers, structural style, complexity         |
+| 5   | **skills_test_authoring**        | Verify      | ENGINEER, VALIDATOR  | Cohn test pyramid                          | Pyramid balance, authoring discipline, coverage targets, determinism      |
+| 6   | **skills_security_review**       | Verify      | REFLECTOR, VALIDATOR | OWASP SAMM, NIST SSDF (PS, PW, RV)         | Secrets, injection, authn/authz, supply chain                             |
+| 7   | **skills_performance_profiling** | Verify      | ENGINEER, VALIDATOR  | Google SRE Ch. 6                           | Baseline, hotspot analysis, targeted optimisation, regression guard       |
+| 8   | **skills_observability**         | Operate     | ENGINEER, VALIDATOR  | Google SRE — four golden signals + SLI/SLO | Golden signals, SLI/SLO, telemetry hygiene, sensitive data                |
+| 9   | **skills_release_engineering**   | Deliver     | ENGINEER, VALIDATOR  | DORA — _Accelerate_, _State of DevOps_     | CI discipline, deployment strategy, rollback safety, DORA metrics         |
+| 10  | **skills_documentation**         | Communicate | LIBRARIAN, all       | Diátaxis four-mode framework               | Tutorial / how-to / reference / explanation, doc-as-code, freshness       |
 
 Skill structure is uniform across all ten files: frontmatter, `## Scope` description, topic sections of directional guidance, common failure modes, and required outputs. The library divides the SDLC into ten non-overlapping columns, so retrieving one skill never leaves a gap that another skill silently fills, and adding an eleventh skill requires retiring an existing one — the library size is fixed at ten by design.
 
