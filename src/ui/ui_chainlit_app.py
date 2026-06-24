@@ -23,6 +23,8 @@ from src.analytics.analytics_bigquery_ingest import AnalyticsBigqueryIngest
 from src.analytics.analytics_supabase_ingest import AnalyticsSupabaseIngest
 from src.api.middleware.api_middleware_observability import record_active_workflows, record_metrics
 from src.api.schemas.api_schemas_task import ApiSchemasTaskRequest
+from src.core.core_config import core_config_get_settings
+from src.core.core_tracing import core_tracing_configure
 from src.ui.ui_chainlit_formatters import (
     ui_chainlit_utils_confidence_badge,
     ui_chainlit_utils_format_agent_trace,
@@ -45,6 +47,9 @@ from src.ui.ui_chainlit_utils import (
 logger = logging.getLogger(__name__)
 
 _active_workflow_count: int = 0
+
+# Initialize LangSmith tracing at module load (idempotent via _PATCHED guard)
+core_tracing_configure(core_config_get_settings())
 
 
 @cl.author_rename
