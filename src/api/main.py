@@ -52,6 +52,7 @@ from src.core.core_config import core_config_get_settings as get_settings
 from src.core.core_config import core_config_validate_settings as validate_settings
 from src.core.core_heartbeat import core_heartbeat_resolve_instance, core_heartbeat_run
 from src.core.core_logging import core_logging_setup_logging as configure_logging
+from src.core.core_tracing import core_tracing_configure
 from src.core.core_utils import CORE_HEARTBEAT_INTERVAL_S, CORE_HEARTBEAT_LOG_PRECONDITION_MISSING
 from src.rag.rag_vector_store import RagVectorStore
 from src.storage.storage_gcs import StorageGcs
@@ -168,6 +169,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             auth=auth_status,
         )
     )
+    core_tracing_configure(settings)
     yield
 
     heartbeat_task = getattr(app.state, "grafana_heartbeat_task", None)

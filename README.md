@@ -235,6 +235,7 @@ QDRANT_API_KEY=
 LANGCHAIN_TRACING_V2=false
 LANGCHAIN_API_KEY=
 LANGCHAIN_PROJECT=agentics-sdlc
+LANGCHAIN_WORKSPACE_ID=
 ```
 
 ### Basic Usage
@@ -362,7 +363,7 @@ flowchart TD
 
 > See [CHEATSHEET.md → Enabling the Grafana dashboard locally](CHEATSHEET.md#enabling-the-grafana-dashboard-locally) for the three env vars to uncomment in `.env` to light up the live panels.
 
-> LangSmith LLM-call tracing is controlled by `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT`; it is gated by `CoreSettings.langsmith_enabled` (off when the key is absent).
+> LangSmith LLM-call tracing is controlled by `LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT`; it is gated by `CoreSettings.langsmith_enabled` (off when the key is absent). `LANGCHAIN_WORKSPACE_ID` scopes ingest to a workspace (needed for free Personal-org accounts).
 
 ---
 

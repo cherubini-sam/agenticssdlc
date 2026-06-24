@@ -16,6 +16,7 @@ from src.core.core_utils import (
     CORE_CONFIG_DEFAULT_LANGCHAIN_API_KEY,
     CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT,
     CORE_CONFIG_DEFAULT_LANGCHAIN_TRACING_V2,
+    CORE_CONFIG_DEFAULT_LANGCHAIN_WORKSPACE_ID,
     CORE_CONFIG_DEFAULT_PORT,
     CORE_CONFIG_DEFAULT_RATE_LIMIT_RPM,
     CORE_CONFIG_ENV_ENCODING,
@@ -43,7 +44,8 @@ class CoreSettings(BaseSettings):
             grafana_instance_id, grafana_api_key.
         CORS: allowed_origins.
         Rate Limiting: rate_limit_rpm (0 = no limit).
-        LangSmith: langchain_tracing_v2, langchain_api_key, langchain_project.
+        LangSmith: langchain_tracing_v2, langchain_api_key, langchain_project,
+            langchain_workspace_id.
     """
 
     model_config = SettingsConfigDict(
@@ -114,6 +116,9 @@ class CoreSettings(BaseSettings):
     )
     langchain_project: str = Field(
         default=CORE_CONFIG_DEFAULT_LANGCHAIN_PROJECT, alias="LANGCHAIN_PROJECT"
+    )
+    langchain_workspace_id: str = Field(
+        default=CORE_CONFIG_DEFAULT_LANGCHAIN_WORKSPACE_ID, alias="LANGCHAIN_WORKSPACE_ID"
     )
 
     @property
