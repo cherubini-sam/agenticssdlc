@@ -235,8 +235,8 @@ jobs:
             --max-instances 2 \
             --timeout 900 \
             --session-affinity \
-            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},ENVIRONMENT=production" \
-            --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,CHAINLIT_AUTH_SECRET=chainlit-auth-secret:latest,UI_AUTH_PASSWORD_HASH=ui-auth-password-hash:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest"
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},GCS_BUCKET=artifacts-${{ vars.GCP_PROJECT_ID }},ENVIRONMENT=production,LANGCHAIN_TRACING_V2=true,LANGCHAIN_PROJECT=agentics-sdlc,LANGCHAIN_WORKSPACE_ID=${{ vars.LANGCHAIN_WORKSPACE_ID }}" \
+            --set-secrets "AGENTICS_SDLC_API_KEY=agentics-sdlc-api-key:latest,SUPABASE_URL=supabase-url:latest,SUPABASE_KEY=supabase-key:latest,SUPABASE_DB_URL=supabase-db-url:latest,QDRANT_URL=qdrant-url:latest,QDRANT_API_KEY=qdrant-api-key:latest,CHAINLIT_AUTH_SECRET=chainlit-auth-secret:latest,UI_AUTH_PASSWORD_HASH=ui-auth-password-hash:latest,METRICS_USERNAME=metrics-username:latest,METRICS_PASSWORD=metrics-password:latest,LANGCHAIN_API_KEY=langsmith-api-key:latest"
 
       - name: Verify UI deployment
         run: |
