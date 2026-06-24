@@ -307,6 +307,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
     stream_timeout = UI_CHAINLIT_APP_STREAM_TIMEOUT
 
     try:
+        _session_id: str | None = getattr(getattr(cl.context, "session", None), "id", None)
         event_gen = manager.agents_manager_stream_events(
             request,
             confidence_threshold=_reflector_threshold,
@@ -314,6 +315,7 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
             max_retries=_max_retries,
             verbosity=_verbosity,
             resume=_resume,
+            session_id=_session_id,
         ).__aiter__()
         while True:
             if cl.user_session.get("stop_requested"):

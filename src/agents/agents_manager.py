@@ -862,13 +862,20 @@ class AgentsManager:
         graph = builder.compile(checkpointer=checkpointer)
         return cls(graph)
 
-    async def agents_manager_run(self, request: ApiSchemasTaskRequest) -> ApiSchemasTaskResponse:
+    async def agents_manager_run(
+        self,
+        request: ApiSchemasTaskRequest,
+        session_id: str | None = None,
+    ) -> ApiSchemasTaskResponse:
         """Run the full pipeline synchronously and return a completed response.
 
         Args:
             request: ApiSchemasTaskRequest carrying the ``task_id`` (unique identifier used as
                 the LangGraph thread ID and GCS artifact key) and ``content`` (raw task
                 description passed to every agent phase).
+            session_id: Optional stable identifier for the calling session. When provided,
+                injected into the LangGraph run config as ``metadata["session_id"]`` for
+                LangSmith thread grouping. Has no effect on execution or checkpointer.
 
         Returns:
             ApiSchemasTaskResponse populated with ``status``, ``result``, ``confidence``,
@@ -904,6 +911,8 @@ class AgentsManager:
             "configurable": {"thread_id": request.task_id},
             "recursion_limit": AGENTS_MANAGER_GRAPH_RECURSION_LIMIT,
         }
+        if session_id:
+            config["metadata"] = {"session_id": session_id}
 
         try:
             final_state = await asyncio.wait_for(
@@ -1014,6 +1023,7 @@ class AgentsManager:
         max_retries: int | None = None,
         verbosity: str | None = None,
         resume: bool = False,
+        session_id: str | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """Stream LangGraph events in real time for the Chainlit UI.
 
@@ -1031,6 +1041,10 @@ class AgentsManager:
             resume: When ``True`` the graph is invoked with ``None`` as input so LangGraph
                 restores execution from the MemorySaver checkpoint for the given ``task_id``
                 instead of reinitialising state from scratch.
+            session_id: Optional stable identifier for the Chainlit conversation. When
+                provided, injected into the LangGraph run config as ``metadata["session_id"]``
+                so LangSmith groups all runs from one conversation into a single thread.
+                Has no effect on execution, checkpointer keys, or ``AgentsState``.
 
         Returns:
             Async generator of LangGraph event dicts as produced by
@@ -1065,6 +1079,8 @@ class AgentsManager:
             "configurable": {"thread_id": request.task_id},
             "recursion_limit": AGENTS_MANAGER_GRAPH_RECURSION_LIMIT,
         }
+        if session_id:
+            config["metadata"] = {"session_id": session_id}
         task_id = request.task_id
         # On resume, pass None so LangGraph restores from the MemorySaver checkpoint
         stream_input = None if resume else initial_state
