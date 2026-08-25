@@ -2,21 +2,12 @@
 
 from __future__ import annotations
 
-import json
-import re
 from typing import Literal
 
+AGENTS_UTILS_HEADER_PATTERN: str = r"^ {0,3}#{1,6}\s"
+AGENTS_UTILS_FENCE_PATTERN: str = r"^ {0,3}(`{3,}|~{3,})"
 
-def agents_utils_extract_json(raw: str, pattern: str) -> dict | None:
-    """Extract the first JSON object matching pattern from raw LLM output."""
-
-    try:
-        match: re.Match[str] | None = re.search(pattern, raw, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-    except (json.JSONDecodeError, AttributeError):
-        pass
-    return None
+AGENTS_UTILS_CLOSING_HASH_WHITESPACE_CHARS: str = " \t"
 
 
 # Agent Names
@@ -271,10 +262,12 @@ AGENTS_ENGINEER_SYSTEM_PROMPT: str = (
     "Code must be syntactically complete and executable (balanced braces, closed "
     "strings, no trailing ellipsis, no 'TODO' placeholders). For a named operation "
     "(Parquet/CSV export, S3 upload, API call), include the concrete library call "
-    "that performs it. If a step cannot complete without missing input, document the "
-    "gap in 'Notes' and proceed with the rest. Reserve 'status: context_missing' for "
-    "the rare case where the plan cannot execute at all without a specific absent "
-    "section."
+    "that performs it. If a step cannot complete without missing input, state that "
+    "gap in the body of the affected section and proceed with the rest. Never emit "
+    "a section header with an empty body — every heading you write must be followed "
+    "by content, and a section you cannot fill must say so in its own body. Reserve "
+    "'status: context_missing' for the rare case where the plan cannot execute at "
+    "all without a specific absent section."
 )
 AGENTS_ENGINEER_CONTEXT_MISSING_STATUS: str = "context_missing"
 AGENTS_ENGINEER_CONTEXT_MISSING_TEMPLATE: str = (
@@ -296,8 +289,8 @@ AGENTS_KNOWN_PROTOCOL_SECTIONS: list[str] = [
 
 AGENTS_VALIDATOR_PLAN_TRUNCATION: int = 2000
 AGENTS_VALIDATOR_RESULT_TRUNCATION: int = 3000
-AGENTS_VALIDATOR_FALLBACK_SCORE: float = 0.85
-AGENTS_VALIDATOR_DEFAULT_SCORE: float = 0.80
+AGENTS_VALIDATOR_FALLBACK_SCORE: float = 0.65
+AGENTS_VALIDATOR_DEFAULT_SCORE: float = 0.65
 AGENTS_VALIDATOR_SYSTEM_PROMPT: str = (
     "Default stance: PASS. Reserve FAILED for blank, off-topic, or critically broken "
     "output. Partial implementations, minor omissions, and stylistic imperfections are "
@@ -320,6 +313,9 @@ AGENTS_VALIDATOR_SYSTEM_PROMPT: str = (
 )
 AGENTS_VALIDATOR_ISSUE_PLAN_CONTINGENCY_VIOLATION: str = "plan_contingency_violation"
 AGENTS_VALIDATOR_ISSUE_INCOMPLETE_IMPLEMENTATION: str = "incomplete_implementation"
+AGENTS_VALIDATOR_ISSUE_EMPTY_SECTION: str = "empty_section"
+AGENTS_VALIDATOR_ISSUE_UNPARSEABLE_OUTPUT: str = "unparseable_output"
+AGENTS_VALIDATOR_EMPTY_SECTION_SCORE: float = 0.0
 AGENTS_VALIDATOR_VERDICT_PASSED: str = "passed"
 AGENTS_VALIDATOR_VERDICT_FAILED: str = "failed"
 AGENTS_VALIDATOR_LOG_PARSE_FAILED: str = (

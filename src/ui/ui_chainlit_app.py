@@ -12,6 +12,7 @@ from typing import Any
 import bcrypt
 import chainlit as cl
 from chainlit.input_widget import Select, Slider, Switch
+from pydantic import ValidationError
 
 from src.agents.agents_manager import AgentsManager
 from src.agents.agents_utils import (
@@ -19,8 +20,10 @@ from src.agents.agents_utils import (
     AGENTS_MANAGER_PHASE_MAX,
     AGENTS_MANAGER_PHASE_MIN,
 )
+from src.agents.agents_validator import agents_validator_find_empty_sections
 from src.analytics.analytics_bigquery_ingest import AnalyticsBigqueryIngest
 from src.analytics.analytics_supabase_ingest import AnalyticsSupabaseIngest
+from src.api.api_utils import API_SCHEMAS_TASK_CONTENT_MAX_LENGTH
 from src.api.middleware.api_middleware_observability import record_active_workflows, record_metrics
 from src.api.schemas.api_schemas_task import ApiSchemasTaskRequest
 from src.core.core_config import core_config_get_settings
@@ -37,6 +40,8 @@ from src.ui.ui_chainlit_utils import (
     UI_CHAINLIT_APP_DEFAULT_VERBOSITY,
     UI_CHAINLIT_APP_STREAM_TIMEOUT,
     UI_CHAINLIT_UTILS_GRAPH_NODES,
+    UI_CHAINLIT_UTILS_MSG_INCOMPLETE_OUTPUT,
+    UI_CHAINLIT_UTILS_MSG_INPUT_TOO_LONG,
     UI_CHAINLIT_UTILS_PHASE_META,
     UI_CHAINLIT_UTILS_STARTERS,
     UI_CHAINLIT_UTILS_STEP_INIT_TOKEN,
@@ -264,7 +269,16 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
         task_id = str(uuid.uuid4())
         _completed_nodes = set()
 
-    request = ApiSchemasTaskRequest(task_id=task_id, content=message.content)
+    try:
+        request = ApiSchemasTaskRequest(task_id=task_id, content=message.content)
+    except ValidationError:
+        await cl.Message(
+            content=UI_CHAINLIT_UTILS_MSG_INPUT_TOO_LONG.format(
+                max_length=API_SCHEMAS_TASK_CONTENT_MAX_LENGTH,
+                actual=len(message.content),
+            )
+        ).send()
+        return
 
     global _active_workflow_count
     start_time = time.monotonic()
@@ -549,6 +563,13 @@ async def ui_chainlit_app_on_message(message: cl.Message) -> None:
     ]
     if result:
         md_parts += ["## Result", "", result, ""]
+        empty_sections = agents_validator_find_empty_sections(result)
+        if empty_sections:
+            missing = ", ".join(empty_sections)
+            md_parts += [
+                UI_CHAINLIT_UTILS_MSG_INCOMPLETE_OUTPUT.format(missing=missing),
+                "",
+            ]
     if error:
         md_parts += ["## Error", "", f"```\n{error}\n```", ""]
 

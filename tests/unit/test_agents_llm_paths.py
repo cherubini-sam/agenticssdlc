@@ -270,8 +270,13 @@ class TestAgentsValidatorVerify:
         agent.llm.ainvoke.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_verify_garbled_json_returns_safe_default(self) -> None:
-        """When LLM returns non-JSON, the safe fallback dict is returned."""
+    async def test_verify_garbled_json_fails_closed(self) -> None:
+        """When LLM returns non-JSON, the fail-closed default dict is returned."""
+        from agents.agents_utils import (
+            AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT,
+            AGENTS_VALIDATOR_ISSUE_UNPARSEABLE_OUTPUT,
+            AGENTS_VALIDATOR_VERDICT_FAILED,
+        )
         from agents.agents_validator import AgentsValidator
 
         agent = _make_base_agent(AgentsValidator)
@@ -281,12 +286,18 @@ class TestAgentsValidatorVerify:
             result="some output", plan="## Plan", task="task"
         )
 
-        assert result["verdict"] == "passed"
-        assert result["issues"] == []
+        assert result["verdict"] == AGENTS_VALIDATOR_VERDICT_FAILED
+        assert result["score"] < AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT
+        assert AGENTS_VALIDATOR_ISSUE_UNPARSEABLE_OUTPUT in result["issues"]
 
     @pytest.mark.asyncio
-    async def test_verify_invalid_score_type_returns_safe_default(self) -> None:
-        """A non-numeric score field triggers the ValueError branch → safe default."""
+    async def test_verify_invalid_score_type_fails_closed(self) -> None:
+        """A non-numeric score field triggers the ValueError branch → fail-closed default."""
+        from agents.agents_utils import (
+            AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT,
+            AGENTS_VALIDATOR_ISSUE_UNPARSEABLE_OUTPUT,
+            AGENTS_VALIDATOR_VERDICT_FAILED,
+        )
         from agents.agents_validator import AgentsValidator
 
         agent = _make_base_agent(AgentsValidator)
@@ -295,8 +306,10 @@ class TestAgentsValidatorVerify:
 
         result = await agent.agents_validator_verify(result="output", plan="plan", task="task")
 
-        assert result["verdict"] == "passed"
+        assert result["verdict"] == AGENTS_VALIDATOR_VERDICT_FAILED
         assert isinstance(result["score"], float)
+        assert result["score"] < AGENTS_MANAGER_VALIDATOR_THRESHOLD_DEFAULT
+        assert AGENTS_VALIDATOR_ISSUE_UNPARSEABLE_OUTPUT in result["issues"]
 
 
 class TestAgentsLibrarianRetrieve:
