@@ -28,6 +28,7 @@ from src.core.core_utils import (  # noqa: E402
 def core_llm_get_llm(
     tier: str = CORE_LLM_DEFAULT_TIER,
     temperature: float = CORE_LLM_DEFAULT_TEMPERATURE,
+    max_output_tokens: int | None = None,
 ) -> ChatVertexAI:
     """Cached Gemini client for the requested tier. Auth via ADC — no keys needed in code.
 
@@ -36,9 +37,13 @@ def core_llm_get_llm(
             Defaults to `"low"` so legacy callers receive Flash behavior unchanged.
         temperature: Sampling temperature; 0.0 for deterministic outputs,
             higher values increase creativity.
+        max_output_tokens: Optional cap on generated tokens. `None` (the default)
+            omits the kwarg entirely, producing a construction byte-identical to
+            callers that do not need a cap.
 
     Returns:
-        Singleton ChatVertexAI instance cached on (tier, temperature) for the process lifetime.
+        Singleton ChatVertexAI instance cached on (tier, temperature,
+        max_output_tokens) for the process lifetime.
 
     Raises:
         ValueError: If `tier` is not one of the supported tier values.
@@ -51,9 +56,12 @@ def core_llm_get_llm(
         model_name = s.gemini_model_low
     else:
         raise ValueError(CORE_LLM_UNKNOWN_TIER_ERROR.format(tier=tier))
-    return ChatVertexAI(
-        model_name=model_name,
-        project=s.gcp_project_id,
-        location=s.gcp_region,
-        temperature=temperature,
-    )
+    kwargs: dict[str, object] = {
+        "model_name": model_name,
+        "project": s.gcp_project_id,
+        "location": s.gcp_region,
+        "temperature": temperature,
+    }
+    if max_output_tokens is not None:
+        kwargs["max_output_tokens"] = max_output_tokens
+    return ChatVertexAI(**kwargs)

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import re
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.agents_base import AgentsBase
@@ -16,8 +19,19 @@ from src.agents.agents_utils import (
     AGENTS_REFLECTOR_SEVERITY_MEDIUM,
     AGENTS_REFLECTOR_SKIP_LABEL,
     AGENTS_REFLECTOR_SYSTEM_PROMPT,
-    agents_utils_extract_json,
 )
+
+
+def agents_reflector_extract_json(raw: str, pattern: str) -> dict | None:
+    """Extract the first JSON object matching pattern from raw LLM output."""
+
+    try:
+        match: re.Match[str] | None = re.search(pattern, raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return None
 
 
 class AgentsReflector(AgentsBase):
@@ -107,4 +121,4 @@ class AgentsReflector(AgentsBase):
             Parsed dict from the first JSON object in raw, or default on failure.
         """
 
-        return agents_utils_extract_json(raw, AGENTS_REFLECTOR_JSON_PATTERN) or default
+        return agents_reflector_extract_json(raw, AGENTS_REFLECTOR_JSON_PATTERN) or default

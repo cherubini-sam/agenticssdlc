@@ -172,3 +172,12 @@ UI_CHAINLIT_UTILS_MSG_TRACE_DETAIL_VIOLATIONS: str = "violations: `{violations}`
 
 # Truncation
 UI_CHAINLIT_UTILS_MSG_TRUNCATE_OVERFLOW: str = "... *(+{overflow} chars)*"
+
+# Input guard
+UI_CHAINLIT_UTILS_MSG_INPUT_TOO_LONG: str = (
+    "Your message is too long or invalid (max {max_length} characters, "
+    "got {actual}). Please shorten it and try again."
+)
+UI_CHAINLIT_UTILS_MSG_INCOMPLETE_OUTPUT: str = (
+    "> **Incomplete output:** the following sections were returned " "with no content: {missing}"
+)

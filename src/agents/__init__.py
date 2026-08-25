@@ -7,8 +7,7 @@ from src.agents.agents_engineer import AgentsEngineer
 from src.agents.agents_librarian import AgentsLibrarian
 from src.agents.agents_manager import AgentsManager
 from src.agents.agents_protocol import AgentsProtocol
-from src.agents.agents_reflector import AgentsReflector
-from src.agents.agents_utils import agents_utils_extract_json
+from src.agents.agents_reflector import AgentsReflector, agents_reflector_extract_json
 from src.agents.agents_validator import AgentsValidator
 
 __all__ = [
@@ -20,5 +19,5 @@ __all__ = [
     "AgentsProtocol",
     "AgentsReflector",
     "AgentsValidator",
-    "agents_utils_extract_json",
+    "agents_reflector_extract_json",
 ]
